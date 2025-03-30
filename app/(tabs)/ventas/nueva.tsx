@@ -21,6 +21,7 @@ import { Product, Sale, SaleItem } from '../../../models/types';
 import ProductSearchInput from '../../../components/ProductSearchInput';
 import { Timestamp } from 'firebase/firestore';
 import { FlatList } from 'react-native';
+import i18n from '../../../translations';
 
 export default function NewSaleScreen() {
   const [cartItems, setCartItems] = useState<SaleItem[]>([]);
@@ -37,18 +38,18 @@ export default function NewSaleScreen() {
 
   const handleAddToCart = () => {
     if (!selectedProduct) {
-      Alert.alert('Error', 'Por favor selecciona un producto');
+      Alert.alert(i18n.t('common.error'), i18n.t('sales.errorSelectProduct'));
       return;
     }
 
     const qty = parseInt(quantity, 10);
     if (isNaN(qty) || qty <= 0) {
-      Alert.alert('Error', 'Por favor ingresa una cantidad válida');
+      Alert.alert(i18n.t('common.error'), i18n.t('sales.errorValidQuantity'));
       return;
     }
 
     if (qty > (selectedProduct.quantity || 0)) {
-      Alert.alert('Error', 'No hay suficiente stock disponible');
+      Alert.alert(i18n.t('common.error'), i18n.t('sales.errorInsufficientStock'));
       return;
     }
 

@@ -7,6 +7,7 @@ import { salesService } from '../../services/salesService';
 import { cashService } from '../../services/cashService';
 import Colors from '../../constants/Colors';
 import { Timestamp } from 'firebase/firestore';
+import i18n from '../../translations';
 
 export default function DashboardScreen() {
   const [loading, setLoading] = useState<boolean>(true);
@@ -66,7 +67,7 @@ export default function DashboardScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.primary} />
-        <Text style={styles.loadingText}>Cargando datos...</Text>
+        <Text style={styles.loadingText}>{i18n.t('dashboard.loading')}</Text>
       </View>
     );
   }
@@ -84,18 +85,20 @@ export default function DashboardScreen() {
       }
     >
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Punto Eco</Text>
-        <Text style={styles.headerSubtitle}>Panel de Control</Text>
+        <Text style={styles.headerTitle}>
+          {i18n.t('dashboard.title')}
+        </Text>
+        <Text style={styles.headerSubtitle}>{i18n.t('dashboard.subtitle')}</Text>
       </View>
 
       <View style={styles.balanceCard}>
-        <Text style={styles.balanceLabel}>Saldo Actual</Text>
+        <Text style={styles.balanceLabel}>{i18n.t('dashboard.currentBalance')}</Text>
         <Text style={styles.balanceAmount}>${currentBalance.toFixed(2)}</Text>
         <TouchableOpacity
           style={styles.viewMoreButton}
           onPress={() => router.push('/caja')}
         >
-          <Text style={styles.viewMoreButtonText}>Ver Caja</Text>
+          <Text style={styles.viewMoreButtonText}>{i18n.t('dashboard.viewCash')}</Text>
           <Ionicons name="chevron-forward" size={16} color={Colors.primary} />
         </TouchableOpacity>
       </View>
@@ -109,7 +112,7 @@ export default function DashboardScreen() {
             <Ionicons name="cube" size={24} color={Colors.primary} />
           </View>
           <Text style={styles.statValue}>{totalProducts}</Text>
-          <Text style={styles.statLabel}>Productos</Text>
+          <Text style={styles.statLabel}>{i18n.t('dashboard.products')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -120,7 +123,7 @@ export default function DashboardScreen() {
             <Ionicons name="alert-circle" size={24} color={Colors.warning} />
           </View>
           <Text style={styles.statValue}>{lowStockProducts}</Text>
-          <Text style={styles.statLabel}>Stock Bajo</Text>
+          <Text style={styles.statLabel}>{i18n.t('dashboard.lowStock')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -131,23 +134,20 @@ export default function DashboardScreen() {
             <Ionicons name="cart" size={24} color={Colors.success} />
           </View>
           <Text style={styles.statValue}>${todaySales.toFixed(2)}</Text>
-          <Text style={styles.statLabel}>Ventas hoy</Text>
+          <Text style={styles.statLabel}>{i18n.t('dashboard.todaySales')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.statCard}
-          onPress={() => router.push('/caja')}
+          onPress={() => router.push('/estadisticas')}
         >
-          <View style={[styles.statIconContainer, { backgroundColor: Colors.info + '20' }]}>
-            <Ionicons name="swap-vertical" size={24} color={Colors.info} />
-          </View>
-          <Text style={styles.statValue}>{todayTransactions}</Text>
-          <Text style={styles.statLabel}>Transacciones</Text>
+          <Ionicons name="stats-chart" size={32} color={Colors.primary} />
+          <Text style={styles.statLabel}>Estadísticas</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.actionsContainer}>
-        <Text style={styles.sectionTitle}>Acciones Rápidas</Text>
+        <Text style={styles.sectionTitle}>{i18n.t('dashboard.quickActions')}</Text>
         
         <TouchableOpacity
           style={styles.actionButton}
@@ -157,8 +157,8 @@ export default function DashboardScreen() {
             <Ionicons name="add-circle" size={24} color={Colors.surface} />
           </View>
           <View style={styles.actionTextContainer}>
-            <Text style={styles.actionTitle}>Nuevo Producto</Text>
-            <Text style={styles.actionDescription}>Agregar un nuevo producto al inventario</Text>
+            <Text style={styles.actionTitle}>{i18n.t('dashboard.newProduct')}</Text>
+            <Text style={styles.actionDescription}>{i18n.t('dashboard.newProductDesc')}</Text>
           </View>
           <Ionicons name="chevron-forward" size={24} color={Colors.textLight} />
         </TouchableOpacity>
@@ -171,8 +171,8 @@ export default function DashboardScreen() {
             <Ionicons name="cart" size={24} color={Colors.surface} />
           </View>
           <View style={styles.actionTextContainer}>
-            <Text style={styles.actionTitle}>Nueva Venta</Text>
-            <Text style={styles.actionDescription}>Registrar una nueva venta</Text>
+            <Text style={styles.actionTitle}>{i18n.t('dashboard.newSale')}</Text>
+            <Text style={styles.actionDescription}>{i18n.t('dashboard.newSaleDesc')}</Text>
           </View>
           <Ionicons name="chevron-forward" size={24} color={Colors.textLight} />
         </TouchableOpacity>
@@ -185,8 +185,8 @@ export default function DashboardScreen() {
             <Ionicons name="cash" size={24} color={Colors.surface} />
           </View>
           <View style={styles.actionTextContainer}>
-            <Text style={styles.actionTitle}>Registrar Transacción</Text>
-            <Text style={styles.actionDescription}>Agregar un movimiento de caja</Text>
+            <Text style={styles.actionTitle}>{i18n.t('dashboard.registerTransaction')}</Text>
+            <Text style={styles.actionDescription}>{i18n.t('dashboard.registerTransactionDesc')}</Text>
           </View>
           <Ionicons name="chevron-forward" size={24} color={Colors.textLight} />
         </TouchableOpacity>

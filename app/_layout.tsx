@@ -5,6 +5,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import Colors from '@/constants/Colors';
+import { LanguageProvider } from '../context/LanguageContext';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -40,24 +41,26 @@ export default function RootLayout() {
 
 function RootLayoutNav() {
   return (
-    <Stack
-      screenOptions={{
-        headerStyle: {
-          backgroundColor: Colors.primary,
-        },
-        headerTintColor: Colors.surface,
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
-        headerBackVisible: true,
-      }}
-    >
-      <Stack.Screen
-        name="(tabs)"
-        options={{
-          headerShown: false,
+    <LanguageProvider>
+      <Stack
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: Colors.primary,
+          },
+          headerTintColor: Colors.surface,
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+          headerBackVisible: true,
         }}
-      />
-    </Stack>
+      >
+        <Stack.Screen
+          name="(tabs)"
+          options={{
+            headerShown: false,
+          }}
+        />
+      </Stack>
+    </LanguageProvider>
   );
 }

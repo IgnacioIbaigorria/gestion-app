@@ -5,11 +5,15 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { productService } from '../../../services/productService';
 import Colors from '../../../constants/Colors';
 import { Product } from '../../../models/types';
+import i18n from '../../../translations';
+import { Tag } from '../../../models/types';
+import { tagService } from '../../../services/tagService';
 
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [tags, setTags] = useState<Tag[]>([]);
 
   useEffect(() => {
     if (id) {
@@ -44,26 +48,39 @@ export default function ProductDetailScreen() {
     if (!product) return;
 
     Alert.alert(
-      'Confirmar eliminación',
-      '¿Estás seguro que deseas eliminar este producto?',
+      i18n.t('products.confirmDelete'),
+      i18n.t('products.confirmDeleteMessage'),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: i18n.t('common.cancel'), style: 'cancel' },
         { 
-          text: 'Eliminar', 
+          text: i18n.t('common.delete'), 
           style: 'destructive',
           onPress: async () => {
             try {
               await productService.deleteProduct(product.id!);
-              Alert.alert('Éxito', 'Producto eliminado correctamente');
+              Alert.alert(i18n.t('common.success'), i18n.t('products.successMessage'));
               router.back();
             } catch (error) {
-              Alert.alert('Error', 'No se pudo eliminar el producto');
+              Alert.alert(i18n.t('common.error'), i18n.t('products.errorMessage'));
               console.error(error);
             }
           }
         },
       ]
     );
+  };
+
+  useEffect(() => {
+    loadTags();
+  }, []);
+
+  const loadTags = async () => {
+    try {
+      const tagsData = await tagService.getAllTags();
+      setTags(tagsData);
+    } catch (error) {
+      console.error('Error loading tags:', error);
+    }
   };
 
   if (loading) {
@@ -78,9 +95,9 @@ export default function ProductDetailScreen() {
   if (!product) {
     return (
       <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>No se encontró el producto</Text>
+        <Text style={styles.errorText}>{i18n.t('products.noProductFound')}</Text>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>Volver</Text>
+          <Text style={styles.backButtonText}>{i18n.t('common.back')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -92,17 +109,17 @@ export default function ProductDetailScreen() {
         <Text style={styles.title}>{product.name}</Text>
         
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Información de precios</Text>
+          <Text style={styles.sectionTitle}>{i18n.t('products.priceInformation')}</Text>
           <View style={styles.priceRow}>
-            <Text style={styles.priceLabel}>Precio de costo:</Text>
+            <Text style={styles.priceLabel}>{i18n.t('products.costPrice')}:</Text>
             <Text style={styles.priceValue}>${product.costPrice.toFixed(2)}</Text>
           </View>
           <View style={styles.priceRow}>
-            <Text style={styles.priceLabel}>Precio de venta:</Text>
+            <Text style={styles.priceLabel}>{i18n.t('products.sellingPrice')}:</Text>
             <Text style={styles.priceValue}>${product.sellingPrice.toFixed(2)}</Text>
           </View>
           <View style={styles.priceRow}>
-            <Text style={styles.priceLabel}>Margen de ganancia:</Text>
+            <Text style={styles.priceLabel}>{i18n.t('products.sellingPriceMargin')}:</Text>
             <Text style={[styles.priceValue, styles.margin]}>
               {product.profitMargin.toFixed(2)}%
             </Text>
@@ -110,22 +127,52 @@ export default function ProductDetailScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Inventario</Text>
+          <Text style={styles.sectionTitle}>{i18n.t('products.inventory')}</Text>
           <View style={styles.priceRow}>
-            <Text style={styles.priceLabel}>Cantidad actual:</Text>
-            <Text style={styles.stockValue}>{product.quantity || 0} unidades</Text>
+            <Text style={styles.priceLabel}>{i18n.t('products.currentQuantity')}:</Text>
+            <Text style={styles.stockValue}>{product.quantity || 0} {i18n.t('products.units')}</Text>
+          </View>
+          <View style={styles.priceRow}>
+            <Text style={styles.priceLabel}>{i18n.t('products.lowStockThreshold')}:</Text>
+            <Text style={styles.stockValue}>
+              {product.lowStockThreshold || 5} {i18n.t('products.units')}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{i18n.t('products.tags')}</Text>
+          <View style={styles.tagsContainer}>
+            {product.tags && product.tags.length > 0 ? (
+              product.tags.map((tagId) => {
+                const tag = tags.find(t => t.id === tagId);
+                return tag ? (
+                  <View 
+                    key={tagId} 
+                    style={[
+                      styles.tag, 
+                      { backgroundColor: tag.color || Colors.primary }
+                    ]}
+                  >
+                    <Text style={styles.tagText}>{tag.name}</Text>
+                  </View>
+                ) : null;
+              })
+            ) : (
+              <Text style={styles.noTagsText}>{i18n.t('products.noTags')}</Text>
+            )}
           </View>
         </View>
 
         <View style={styles.buttonContainer}>
           <TouchableOpacity style={styles.editButton} onPress={handleEdit}>
             <Ionicons name="create-outline" size={20} color={Colors.surface} />
-            <Text style={styles.buttonText}>Editar</Text>
+            <Text style={styles.buttonText}>{i18n.t('products.edit')}</Text>
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
             <Ionicons name="trash-outline" size={20} color={Colors.surface} />
-            <Text style={styles.buttonText}>Eliminar</Text>
+            <Text style={styles.buttonText}>{i18n.t('products.delete')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -133,6 +180,7 @@ export default function ProductDetailScreen() {
   );
 }
 
+// Merge the styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -258,5 +306,26 @@ const styles = StyleSheet.create({
     color: Colors.surface,
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  tagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 8,
+  },
+  tag: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  tagText: {
+    color: Colors.surface,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  noTagsText: {
+    color: Colors.textLight,
+    fontStyle: 'italic',
   },
 });

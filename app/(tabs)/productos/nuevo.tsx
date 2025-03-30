@@ -15,6 +15,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { productService } from '../../../services/productService';
 import Colors from '../../../constants/Colors';
 import { Product } from '../../../models/types';
+import { Tag } from '../../../models/types';
+import { tagService } from '../../../services/tagService';
 
 export default function AddEditProductScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -26,6 +28,9 @@ export default function AddEditProductScreen() {
   const [sellingPrice, setSellingPrice] = useState<string>('0');
   const [profitMargin, setProfitMargin] = useState<string>('0');
   const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [lowStockThreshold, setLowStockThreshold] = useState<string>('5');
+  const [availableTags, setAvailableTags] = useState<Tag[]>([]);
 
   useEffect(() => {
     if (id) {
@@ -33,6 +38,18 @@ export default function AddEditProductScreen() {
       loadProduct(id);
     }
   }, [id]);
+  useEffect(() => {
+    loadTags();
+  }, []);
+  const loadTags = async () => {
+    try {
+      const tagsData = await tagService.getAllTags();
+      setAvailableTags(tagsData);
+    } catch (error) {
+      console.error('Error loading tags:', error);
+    }
+  };
+  
 
   const loadProduct = async (productId: string) => {
     try {
@@ -45,6 +62,8 @@ export default function AddEditProductScreen() {
         setCostPrice(product.costPrice?.toString() || '0');
         setSellingPrice(product.sellingPrice?.toString() || '0');
         setProfitMargin(product.profitMargin?.toString() || '0');
+        setSelectedTags(product.tags || []);
+        setLowStockThreshold(product.lowStockThreshold?.toString() || '5');
       } else {
         Alert.alert('Error', 'No se encontró el producto');
         router.back();
@@ -136,7 +155,9 @@ export default function AddEditProductScreen() {
         quantity: parseInt(quantity, 10) || 0,
         costPrice: parseFloat(costPrice) || 0,
         sellingPrice: parseFloat(sellingPrice) || 0,
-        profitMargin: parseFloat(profitMargin) || 0
+        profitMargin: parseFloat(profitMargin) || 0,
+        tags: selectedTags,
+        lowStockThreshold: parseInt(lowStockThreshold, 10) || 5
       };
       
       if (isEditing && id) {
@@ -246,7 +267,56 @@ export default function AddEditProductScreen() {
               placeholder="0.00"
             />
           </View>
-          
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Stock Bajo</Text>
+            <View style={styles.thresholdContainer}>
+              <TextInput
+                style={styles.input}
+                value={lowStockThreshold}
+                onChangeText={setLowStockThreshold}
+                keyboardType="numeric"
+                placeholder="5"
+              />
+              <Text style={styles.thresholdHelperText}>
+                Alertar cuando el stock sea menor a esta cantidad
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Etiquetas</Text>
+            <View style={styles.tagsContainer}>
+              {availableTags.map((tag) => (
+                <TouchableOpacity
+                  key={tag.id}
+                  style={[
+                    styles.tagButton,
+                    selectedTags.includes(tag.id!) && styles.tagButtonSelected
+                  ]}
+                  onPress={() => {
+                    setSelectedTags(prev => 
+                      prev.includes(tag.id!)
+                        ? prev.filter(t => t !== tag.id)
+                        : [...prev, tag.id!]
+                    );
+                  }}
+                >
+                  <Text style={[
+                    styles.tagButtonText,
+                    selectedTags.includes(tag.id!) && styles.tagButtonTextSelected
+                  ]}>
+                    {tag.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TouchableOpacity
+              style={styles.manageTags}
+              onPress={() => router.push('/productos/tags')}
+            >
+              <Text style={styles.manageTagsText}>Gestionar Etiquetas</Text>
+            </TouchableOpacity>
+          </View>
           <View style={styles.buttonContainer}>
             <TouchableOpacity
               style={styles.cancelButton}
@@ -352,4 +422,46 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  tagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 8,
+  },
+  tagButton: {
+    backgroundColor: Colors.background,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+  },
+  tagButtonSelected: {
+    backgroundColor: Colors.primary,
+  },
+  tagButtonText: {
+    color: Colors.primary,
+    fontSize: 14,
+  },
+  tagButtonTextSelected: {
+    color: Colors.surface,
+  },
+  manageTags: {
+    marginTop: 8,
+  },
+  manageTagsText: {
+    color: Colors.primary,
+    textDecorationLine: 'underline',
+  },
+  thresholdContainer: {
+    marginBottom: 8,
+  },
+  thresholdHelperText: {
+    fontSize: 12,
+    color: Colors.textLight,
+    marginTop: 4,
+    marginLeft: 4,
+  },
 });
+

@@ -1,50 +1,39 @@
-# Welcome to your Expo app 👋
+# Inventory Management for Small Businesses
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A comprehensive management application for small businesses, focusing on inventory, sales, and financial tracking.
 
-## Get started
+## Features
 
-1. Install dependencies
+- **Inventory Management**: Track products, stock levels, and pricing
+- **Sales Processing**: Create and manage sales transactions
+- **Financial Tracking**: Monitor cash flow and generate reports
+- **User-friendly Interface**: Intuitive design for easy navigation
 
-   ```bash
-   npm install
-   ```
+## Screenshots
 
-2. Start the app
+### Dashboard
+![Dashboard](./screenshots/dashboard.png)
 
-   ```bash
-    npx expo start
-   ```
+### Inventory Management
+![Inventory](./screenshots/inventory.png)
 
-In the output, you'll find options to open the app in a
+### Sales Interface
+![Sales](./screenshots/sales.png)
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## Installation
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+1. Clone this repository
+2. Run `npm install` to install dependencies
+3. Configure your Firebase database (see Configuration section)
+4. Run `npx expo start` to start the development server
 
-## Get a fresh project
+## Download
 
-When you're ready, run:
+You can download the latest APK from the [Releases](https://github.com/yourusername/punto-eco-gestion/releases) section.
 
-```bash
-npm run reset-project
-```
+## Technologies Used
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- React Native
+- Expo
+- Firebase
+- TypeScript

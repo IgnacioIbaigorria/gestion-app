@@ -53,6 +53,12 @@ export default function TabLayout() {
           title: 'Detalle de Producto',
         }}
       />
+      <Stack.Screen
+        name="productos/tags/index"
+        options={{
+          title: 'Gestionar Etiquetas',
+        }}
+      />
 
       {/* Sales Screens */}
       <Stack.Screen
@@ -91,6 +97,13 @@ export default function TabLayout() {
         name="caja/reporte"
         options={{
           title: 'Reporte de Caja',
+        }}
+      />
+      <Stack.Screen
+        name="estadisticas/index"
+        options={{
+          title: 'Estadísticas',
+          headerRight: ({ tintColor }) => <Ionicons name="stats-chart" size={24} color={tintColor} />,
         }}
       />
     </Stack>

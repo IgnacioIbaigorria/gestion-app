@@ -15,6 +15,7 @@ import { salesService } from '../../../services/salesService';
 import Colors from '../../../constants/Colors';
 import { format, subDays, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { Timestamp } from 'firebase/firestore';
 
 export default function CashReportScreen() {
   const [loading, setLoading] = useState<boolean>(true);
@@ -53,10 +54,16 @@ export default function CashReportScreen() {
       }
       
       // Obtener datos de transacciones
-      const transactions = await cashService.getTransactionsByDateRange(startDate, endDate);
+      const transactions = await cashService.getTransactionsByDateRange(
+        new Timestamp(Math.floor(startDate.getTime() / 1000), 0),
+        new Timestamp(Math.floor(endDate.getTime() / 1000), 0)
+      );
       
       // Obtener datos de ventas
-      const sales = await salesService.getSalesByDateRange(startDate, endDate);
+      const sales = await salesService.getSalesByDateRange(
+        new Timestamp(Math.floor(startDate.getTime() / 1000), 0),
+        new Timestamp(Math.floor(endDate.getTime() / 1000), 0)
+      );
       
       // Calcular totales
       let salesTotal = 0;

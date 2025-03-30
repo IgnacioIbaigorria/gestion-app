@@ -6,6 +6,7 @@ import { productService } from '../../../services/productService';
 import Colors from '../../../constants/Colors';
 import ProductItem from '../../../components/ProductItem';
 import { Product } from '../../../models/types';
+import i18n from '../../../translations';
 
 export default function ProductsScreen() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -19,7 +20,9 @@ export default function ProductsScreen() {
   
   useEffect(() => {
     if (filter === 'lowStock') {
-      setFilteredProducts(products.filter(p => (p.quantity || 0) < 5));
+      setFilteredProducts(products.filter(p => 
+        (p.quantity || 0) < (p.lowStockThreshold || 5)
+      ));
     } else {
       setFilteredProducts(products);
     }
@@ -40,20 +43,20 @@ export default function ProductsScreen() {
 
   const handleDeleteProduct = (id: string) => {
     Alert.alert(
-      'Confirmar eliminación',
-      '¿Estás seguro que deseas eliminar este producto?',
+      i18n.t('products.confirmDelete'),
+      i18n.t('products.confirmDeleteMessage'),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: i18n.t('common.cancel'), style: 'cancel' },
         { 
-          text: 'Eliminar', 
+          text: i18n.t('common.delete'), 
           style: 'destructive',
           onPress: async () => {
             try {
               await productService.deleteProduct(id);
-              Alert.alert('Éxito', 'Producto eliminado correctamente');
+              Alert.alert(i18n.t('common.success'), i18n.t('products.successMessage'));
               loadProducts();
             } catch (error) {
-              Alert.alert('Error', 'No se pudo eliminar el producto');
+              Alert.alert(i18n.t('common.error'), i18n.t('products.errorMessage'));
               console.error(error);
             }
           }
@@ -66,11 +69,12 @@ export default function ProductsScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.primary} />
-        <Text style={styles.loadingText}>Cargando productos...</Text>
+        <Text style={styles.loadingText}>{i18n.t('products.loading')}</Text>
       </View>
     );
   }
 
+  // Add to the JSX, near the add button
   return (
     <View style={styles.container}>
       <FlatList
@@ -83,7 +87,7 @@ export default function ProductsScreen() {
         onRefresh={loadProducts}
         ListEmptyComponent={
           <Text style={styles.emptyText}>
-            No hay productos registrados. Agrega un nuevo producto.
+            {i18n.t('products.empty')}
           </Text>
         }
       />

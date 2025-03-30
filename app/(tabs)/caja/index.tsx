@@ -18,6 +18,7 @@ import { CashTransaction } from '../../../models/types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Timestamp } from 'firebase/firestore';
+import i18n from '../../../translations';
 
 export default function CashRegisterScreen() {
   const [transactions, setTransactions] = useState<CashTransaction[]>([]);
@@ -77,28 +78,17 @@ export default function CashRegisterScreen() {
   };
 
   const getTransactionTypeText = (type: string) => {
-    switch (type) {
-      case 'sale':
-        return 'Venta';
-      case 'expense':
-        return 'Gasto';
-      case 'deposit':
-        return 'Depósito';
-      case 'withdrawal':
-        return 'Retiro';
-      default:
-        return 'Desconocido';
-    }
+    return i18n.t(`cash.${type}`);
   };
 
   const handleAddTransaction = async () => {
     if (!amount || parseFloat(amount) <= 0) {
-      Alert.alert('Error', 'Por favor ingresa un monto válido');
+      Alert.alert(i18n.t('common.error'), i18n.t('cash.errorValidAmount'));
       return;
     }
 
     if (!description.trim()) {
-      Alert.alert('Error', 'Por favor ingresa una descripción');
+      Alert.alert(i18n.t('common.error'), i18n.t('cash.errorDescription'));
       return;
     }
 
@@ -114,17 +104,15 @@ export default function CashRegisterScreen() {
       
       await cashService.recordTransaction(transaction);
       
-      // Limpiar formulario
       setAmount('');
       setDescription('');
       setModalVisible(false);
       
-      // Recargar datos
       loadData();
       
-      Alert.alert('Éxito', 'Transacción registrada correctamente');
+      Alert.alert(i18n.t('common.success'), i18n.t('cash.successTransaction'));
     } catch (error) {
-      Alert.alert('Error', 'No se pudo registrar la transacción');
+      Alert.alert(i18n.t('common.error'), i18n.t('cash.errorTransaction'));
       console.error(error);
     } finally {
       setSubmitting(false);

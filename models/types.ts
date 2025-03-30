@@ -3,10 +3,19 @@ import { Timestamp } from 'firebase/firestore';
 export interface Product {
   id?: string;
   name: string;
-  quantity: number;
+  description?: string;
   costPrice: number;
   sellingPrice: number;
+  quantity: number;
   profitMargin: number;
+  tags?: string[];
+  lowStockThreshold?: number; // New field
+}
+
+export interface Tag {
+  id?: string;
+  name: string;
+  color?: string;
 }
 
 export interface SaleItem {

@@ -6,6 +6,7 @@ import { salesService } from '../../../services/salesService';
 import Colors from '../../../constants/Colors';
 import SaleItem from '../../../components/SaleItem';
 import { Sale } from '../../../models/types';
+import i18n from '../../../translations';
 
 export default function SalesScreen() {
   const [sales, setSales] = useState<Sale[]>([]);
@@ -32,7 +33,7 @@ export default function SalesScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.primary} />
-        <Text style={styles.loadingText}>Cargando ventas...</Text>
+        <Text style={styles.loadingText}>{i18n.t('sales.loading')}</Text>
       </View>
     );
   }
@@ -47,7 +48,7 @@ export default function SalesScreen() {
         onRefresh={loadSales}
         ListEmptyComponent={
           <Text style={styles.emptyText}>
-            No hay ventas registradas. Registra una nueva venta.
+            {i18n.t('sales.empty')}
           </Text>
         }
       />
