@@ -4,7 +4,7 @@
     "slug": "punto-eco-gestion",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/gestion-de-proyectos.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -12,12 +12,17 @@
       "supportsTablet": true
     },
     "android": {
+      "enableProguardInReleaseBuilds": true,
+      "enableShrinkResources": true,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/gestion-de-proyectos.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.ignacioivan00.puntoecogestion"
     },
+    "assetBundlePatterns": [
+      "assets/images/*"
+    ],
     "web": {
       "bundler": "metro",
       "output": "static",
@@ -32,6 +37,15 @@
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResources": true
+          }
         }
       ]
     ],

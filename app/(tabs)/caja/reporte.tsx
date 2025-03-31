@@ -16,6 +16,10 @@ import Colors from '../../../constants/Colors';
 import { format, subDays, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Timestamp } from 'firebase/firestore';
+import i18n from '@/translations';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+
 
 export default function CashReportScreen() {
   const [loading, setLoading] = useState<boolean>(true);
@@ -52,7 +56,7 @@ export default function CashReportScreen() {
         default:
           startDate = startOfDay(new Date());
       }
-      
+    
       // Obtener datos de transacciones
       const transactions = await cashService.getTransactionsByDateRange(
         new Timestamp(Math.floor(startDate.getTime() / 1000), 0),
@@ -107,6 +111,110 @@ export default function CashReportScreen() {
       console.error(error);
     } finally {
       setLoading(false);
+    }
+  };
+  const handleExportReport = async () => {
+    try {
+      const dateRange = getDateRangeText();
+      
+      const html = `
+        <html>
+          <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
+            <style>
+              body { font-family: 'Helvetica', sans-serif; padding: 20px; }
+              .header { text-align: center; margin-bottom: 30px; }
+              .title { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+              .date { color: #666; margin-bottom: 20px; }
+              .section { margin-bottom: 30px; }
+              .section-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; }
+              .item { margin-bottom: 10px; }
+              .item-row { display: flex; justify-content: space-between; }
+              .total { border-top: 2px solid #ddd; padding-top: 10px; font-weight: bold; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <div class="title">Reporte de Caja</div>
+              <div class="date">${dateRange}</div>
+            </div>
+
+            <div class="section">
+              <div class="section-title">Resumen General</div>
+              <div class="item">
+                <div class="item-row">
+                  <span>Saldo Actual:</span>
+                  <span>$${currentBalance.toFixed(2)}</span>
+                </div>
+              </div>
+              <div class="item">
+                <div class="item-row">
+                  <span>Ingresos Netos:</span>
+                  <span>$${netIncome.toFixed(2)}</span>
+                </div>
+              </div>
+              <div class="item">
+                <div class="item-row">
+                  <span>Ventas Realizadas:</span>
+                  <span>${salesCount}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="section">
+              <div class="section-title">Detalles de Transacciones</div>
+              <div class="item">
+                <div class="item-row">
+                  <span>Total Ventas:</span>
+                  <span>$${totalSales.toFixed(2)}</span>
+                </div>
+              </div>
+              <div class="item">
+                <div class="item-row">
+                  <span>Total Gastos:</span>
+                  <span>-$${totalExpenses.toFixed(2)}</span>
+                </div>
+              </div>
+              <div class="item">
+                <div class="item-row">
+                  <span>Total Depósitos:</span>
+                  <span>$${totalDeposits.toFixed(2)}</span>
+                </div>
+              </div>
+              <div class="item">
+                <div class="item-row">
+                  <span>Total Retiros:</span>
+                  <span>-$${totalWithdrawals.toFixed(2)}</span>
+                </div>
+              </div>
+              <div class="item total">
+                <div class="item-row">
+                  <span>Balance Neto:</span>
+                  <span>$${netIncome.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div style="text-align: center; color: #666; margin-top: 40px;">
+              Generado el ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: es })}
+            </div>
+          </body>
+        </html>
+      `;
+
+      const { uri } = await Print.printToFileAsync({
+        html,
+        base64: false
+      });
+
+      await Sharing.shareAsync(uri, {
+        UTI: '.pdf',
+        mimeType: 'application/pdf'
+      });
+
+    } catch (error) {
+      console.error('Error al exportar reporte:', error);
+      Alert.alert('Error', 'No se pudo generar el reporte PDF');
     }
   };
 
@@ -277,8 +385,8 @@ export default function CashReportScreen() {
 
       <TouchableOpacity
         style={styles.exportButton}
-        onPress={() => Alert.alert('Información', 'Función de exportar reporte en desarrollo')}
-      >
+        onPress={handleExportReport}
+        >
         <Ionicons name="download-outline" size={20} color={Colors.surface} />
         <Text style={styles.exportButtonText}>Exportar Reporte</Text>
       </TouchableOpacity>

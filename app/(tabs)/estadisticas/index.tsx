@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Dimensions } from 'react-native';
-import { BarChart, LineChart, PieChart } from 'react-native-chart-kit';
+import { BarChart, PieChart } from 'react-native-chart-kit';
 import { productService } from '../../../services/productService';
 import Colors from '../../../constants/Colors';
+
+// Agregar el import del servicio de caja
+import { cashService } from '../../../services/cashService';
 
 interface Statistics {
   totalProducts: number;
@@ -11,6 +14,10 @@ interface Statistics {
   potentialIncome: number;
   investedMoney: number;
   potentialProfit: number;
+  totalIncome: number;
+  totalExpenses: number;
+  netIncome: number;
+  totalProfit: number;
 }
 
 export default function StatisticsScreen() {
@@ -22,6 +29,10 @@ export default function StatisticsScreen() {
     potentialIncome: 0,
     investedMoney: 0,
     potentialProfit: 0,
+    totalIncome: 0,
+    totalExpenses: 0,
+    netIncome: 0,
+    totalProfit: 0,
   });
 
   useEffect(() => {
@@ -31,8 +42,12 @@ export default function StatisticsScreen() {
   const loadStatistics = async () => {
     try {
       setLoading(true);
-      const products = await productService.getAllProducts();
+      const [products, transactions] = await Promise.all([
+        productService.getAllProducts(),
+        cashService.getAllTransactions()
+      ]);
       
+      // Calcular estadísticas de productos
       const statistics = products.reduce((acc, product) => {
         // Calculate total products
         acc.totalProducts += 1;
@@ -61,10 +76,38 @@ export default function StatisticsScreen() {
         potentialIncome: 0,
         investedMoney: 0,
         potentialProfit: 0,
+        totalIncome: 0,
+        totalExpenses: 0,
+        netIncome: 0,
+        totalProfit: 0,
       });
       
       // Calculate potential profit
       statistics.potentialProfit = statistics.potentialIncome - statistics.investedMoney;
+      
+      // Calcular estadísticas financieras desde las transacciones
+      const financialStats = transactions.reduce((acc, transaction) => {
+        switch (transaction.type) {
+          case 'sale':
+          case 'deposit':
+            acc.totalIncome += transaction.amount;
+            break;
+          case 'expense':
+          case 'withdrawal':
+            acc.totalExpenses += transaction.amount;
+            break;
+        }
+        return acc;
+      }, {
+        totalIncome: 0,
+        totalExpenses: 0
+      });
+
+      // Actualizar las estadísticas con los datos financieros
+      statistics.totalIncome = financialStats.totalIncome;
+      statistics.totalExpenses = financialStats.totalExpenses;
+      statistics.netIncome = financialStats.totalIncome - financialStats.totalExpenses;
+      statistics.totalProfit = statistics.netIncome * 0.3; // 30% estimado de ganancia
       
       setStats(statistics);
     } catch (error) {
@@ -97,10 +140,16 @@ export default function StatisticsScreen() {
       borderRadius: 16,
     },
     propsForDots: {
-      r: "4",
+      r: "3",
       strokeWidth: "2",
       stroke: Colors.primary
-    }
+    },
+    propsForLabels: {
+      fontSize: 11,
+      fontWeight: 'bold',
+      fill: Colors.text,
+    },
+    barPercentage: 0.7,
   };
 
   // Datos para el gráfico de inventario
@@ -135,7 +184,7 @@ export default function StatisticsScreen() {
           <Text style={styles.statLabel}>Productos con Stock Bajo</Text>
         </View>
 
-        <View style={[styles.statCard, styles.highlightCard]}>
+        <View style={[styles.statCard]}>
           <Text style={styles.statValue}>
             ${stats.potentialProfit.toFixed(2)}
           </Text>
@@ -164,16 +213,20 @@ export default function StatisticsScreen() {
             {
               name: 'Inversión',
               value: stats.investedMoney,
-              color: Colors.primary,
+              color: Colors.primaryLight,
               legendFontColor: Colors.text,
-              legendFontSize: 10, // Reducido de 12 a 10
+              legendFontSize: 12,
+              legendFontWeight: 'bold',
+              valuePrefix: '$',
             },
             {
               name: 'Ganancia',
               value: stats.potentialProfit,
               color: Colors.success,
               legendFontColor: Colors.text,
-              legendFontSize: 10, // Reducido de 12 a 10
+              legendFontSize: 12,
+              legendFontWeight: 'bold',
+              valuePrefix: '$',
             }
           ]}
           width={chartWidth}
@@ -182,7 +235,7 @@ export default function StatisticsScreen() {
           accessor="value"
           backgroundColor="transparent"
           paddingLeft="0"
-          center={[10, -20]} // Ajusta la posición del centro del gráfico
+          center={[10, -20]}
           absolute
           hasLegend={true}
           avoidFalseZero
@@ -227,9 +280,79 @@ export default function StatisticsScreen() {
           </View>
         </View>
       </View>
+      
+        <View style={styles.balanceContainer}>
+          <Text style={styles.sectionTitle}>Balance financiero</Text>
+          
+          <View style={styles.chartContainer}>
+            <Text style={styles.chartTitle}>Resumen financiero</Text>
+            <Text style={styles.chartDescription}>
+              Análisis de ingresos, egresos y ganancias
+            </Text>
+            <BarChart
+              yAxisLabel="$"
+              yAxisSuffix=""
+              data={{
+                labels: ['Ingresos', 'Egresos', 'Neto', 'Ganancia'],
+                datasets: [{
+                  data: [
+                    stats.totalIncome,
+                    stats.totalExpenses,
+                    stats.netIncome,
+                    stats.totalProfit
+                  ],
+                  
+                  color: (opacity = 1) => Colors.primary,
+                  strokeWidth: 2
+                }],
+              }}
+              width={chartWidth - 60}
+              height={200}
+              chartConfig={{
+                ...chartConfig,
+                color: (opacity = 1) => `rgba(46, 204, 113, ${opacity})`,
+              }}
+              style={{
+                ...styles.chart,
+                marginVertical: 16,  // Aumentar espacio vertical
+              }}
+              showValuesOnTopOfBars
+              fromZero
+            />
+            <View style={styles.legendContainer}>
+              <View style={styles.legendItem}>
+                <Text style={styles.legendLabel}>Ingresos totales:</Text>
+                <Text style={[styles.legendValue, { color: Colors.success }]}>
+                  ${stats.totalIncome.toFixed(2)}
+                </Text>
+              </View>
+              <View style={styles.legendItem}>
+                <Text style={styles.legendLabel}>Egresos totales:</Text>
+                <Text style={[styles.legendValue, { color: Colors.error }]}>
+                  ${stats.totalExpenses.toFixed(2)}
+                </Text>
+              </View>
+              <View style={styles.legendItem}>
+                <Text style={styles.legendLabel}>Balance neto:</Text>
+                <Text style={[styles.legendValue, { 
+                  color: stats.netIncome >= 0 ? Colors.success : Colors.error 
+                }]}>
+                  ${stats.netIncome.toFixed(2)}
+                </Text>
+              </View>
+              <View style={styles.legendItem}>
+                <Text style={styles.legendLabel}>Ganancia estimada:</Text>
+                <Text style={[styles.legendValue, { color: Colors.primary }]}>
+                  ${stats.totalProfit.toFixed(2)}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
     </ScrollView>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
@@ -346,5 +469,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: Colors.text,
+  },
+  balanceContainer: {
+    padding: 16,
   },
 });

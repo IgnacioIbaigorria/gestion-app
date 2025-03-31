@@ -138,7 +138,7 @@ export default function DashboardScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.statCard}
+          style={styles.statisticsCard}
           onPress={() => router.push('/estadisticas')}
         >
           <Ionicons name="stats-chart" size={32} color={Colors.primary} />
@@ -280,6 +280,21 @@ const styles = StyleSheet.create({
     shadowRadius: 1.41,
     alignItems: 'center',
   },
+  statisticsCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    width: '48%',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   statIconContainer: {
     width: 50,
     height: 50,

@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import Colors from '../constants/Colors';
 import { Product } from '../models/types';
+import { tagService } from '../services/tagService';
+import { Tag } from '../models/types';
 
 interface ProductItemProps {
   product: Product;
@@ -11,7 +13,20 @@ interface ProductItemProps {
 }
 
 export default function ProductItem({ product, onDelete }: ProductItemProps) {
+  const [productTags, setProductTags] = useState<Tag[]>([]);
   const isLowStock = (product.quantity || 0) < (product.lowStockThreshold || 5);
+
+  useEffect(() => {
+    loadTags();
+  }, []);
+
+  const loadTags = async () => {
+    if (product.tags && product.tags.length > 0) {
+      const allTags = await tagService.getAllTags();
+      const filteredTags = allTags.filter(tag => product.tags?.includes(tag.id || ''));
+      setProductTags(filteredTags);
+    }
+  };
 
   return (
     <TouchableOpacity
@@ -43,6 +58,22 @@ export default function ProductItem({ product, onDelete }: ProductItemProps) {
             Stock: {product.quantity || 0}
           </Text>
         </View>
+
+        {productTags.length > 0 && (
+          <View style={styles.tagsContainer}>
+            {productTags.map((tag) => (
+              <View 
+                key={tag.id} 
+                style={[
+                  styles.tag,
+                  { backgroundColor: Colors.primaryLight },
+                ]}
+              >
+                <Text style={styles.tagText}>{tag.name}</Text>
+              </View>
+            ))}
+          </View>
+        )}
       </View>
       
       <TouchableOpacity
@@ -125,5 +156,22 @@ const styles = StyleSheet.create({
   deleteButton: {
     padding: 8,
     marginLeft: 12,
+  },
+  tagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 8,
+    gap: 4,
+  },
+  tag: {
+    backgroundColor: Colors.primaryLight,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  tagText: {
+    color: Colors.text,
+    fontSize: 12,
+    fontWeight: '500',
   },
 });
