@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, TextInput, Modal, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { productService } from '../../services/productService';
 import { salesService } from '../../services/salesService';
 import { cashService } from '../../services/cashService';
+import { settingsService } from '../../services/settingsService';
 import { Timestamp } from 'firebase/firestore';
 import i18n from '../../translations';
 import { useLanguage } from '@/context/LanguageContext';
@@ -21,11 +22,24 @@ export default function DashboardScreen() {
   const { locale } = useLanguage();
   const [lowStockCount, setLowStockCount] = useState<number>(0);
   const { theme } = useTheme();
+  const [businessName, setBusinessName] = useState<string>('Punto Eco');
+  const [isEditingName, setIsEditingName] = useState<boolean>(false);
+  const [newBusinessName, setNewBusinessName] = useState<string>('');
 
   useEffect(() => {
     loadDashboardData();
     fetchLowStockCount();
+    loadSettings();
   }, [locale]);
+
+  const loadSettings = async () => {
+    try {
+      const settings = await settingsService.getSettings();
+      setBusinessName(settings.businessName);
+    } catch (error) {
+      console.error('Error loading settings:', error);
+    }
+  };
 
   const loadDashboardData = async () => {
     try {
@@ -90,6 +104,28 @@ export default function DashboardScreen() {
     loadDashboardData();
   };
 
+  const handleEditBusinessName = () => {
+    setNewBusinessName(businessName);
+    setIsEditingName(true);
+  };
+
+  const handleSaveBusinessName = async () => {
+    if (!newBusinessName.trim()) {
+      Alert.alert(i18n.t('common.error'), i18n.t('dashboard.businessNameRequired'));
+      return;
+    }
+
+    try {
+      await settingsService.updateSettings({ businessName: newBusinessName.trim() });
+      setBusinessName(newBusinessName.trim());
+      setIsEditingName(false);
+      Alert.alert(i18n.t('common.success'), i18n.t('dashboard.businessNameUpdated'));
+    } catch (error) {
+      console.error('Error updating business name:', error);
+      Alert.alert(i18n.t('common.error'), i18n.t('common.errorOccurred'));
+    }
+  };
+
   if (loading && !refreshing) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
@@ -112,9 +148,14 @@ export default function DashboardScreen() {
       }
     >
       <View style={[styles.header, { backgroundColor: theme.primary }]}>
-        <Text style={[styles.headerTitle, { color: theme.surface }]}>
-          Punto Eco
-        </Text>
+        <View style={styles.businessNameContainer}>
+          <Text style={[styles.headerTitle, { color: theme.surface }]}>
+            {businessName}
+          </Text>
+          <TouchableOpacity onPress={handleEditBusinessName} style={styles.editButton}>
+            <Ionicons name="pencil" size={18} color={theme.surface} />
+          </TouchableOpacity>
+        </View>
         <Text style={[styles.headerSubtitle, { color: theme.surface }]}>{i18n.t('dashboard.subtitle')}</Text>
       </View>
 
@@ -221,6 +262,45 @@ export default function DashboardScreen() {
           <Ionicons name="chevron-forward" size={24} color={theme.textLight} />
         </TouchableOpacity>
       </View>
+      <Modal
+        visible={isEditingName}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsEditingName(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>
+              {i18n.t('dashboard.editBusinessName')}
+            </Text>
+            <TextInput
+              style={[styles.input, { 
+                backgroundColor: theme.background, 
+                color: theme.text,
+                borderColor: theme.border
+              }]}
+              value={newBusinessName}
+              onChangeText={setNewBusinessName}
+              placeholder={i18n.t('dashboard.businessNamePlaceholder')}
+              placeholderTextColor={theme.textLight}
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, { borderColor: theme.border }]} 
+                onPress={() => setIsEditingName(false)}
+              >
+                <Text style={{ color: theme.text }}>{i18n.t('common.cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalButton, { backgroundColor: theme.primary }]} 
+                onPress={handleSaveBusinessName}
+              >
+                <Text style={{ color: theme.surface }}>{i18n.t('common.save')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -386,5 +466,54 @@ const styles = StyleSheet.create({
   actionDescription: {
     fontSize: 14,
     // color removed
+  },
+  businessNameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  editButton: {
+    marginLeft: 8,
+    padding: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '80%',
+    borderRadius: 12,
+    padding: 20,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    fontSize: 16,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  modalButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginLeft: 8,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

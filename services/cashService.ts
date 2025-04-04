@@ -91,7 +91,7 @@ export const cashService = {
       throw error;
     }
   },
-// Add these methods to cashService
+
 async deleteTransaction(id: string): Promise<void> {
   try {
     await deleteDoc(doc(db, COLLECTION_NAME, id));
@@ -101,10 +101,8 @@ async deleteTransaction(id: string): Promise<void> {
   }
 },
 
-// Add this method to cashService
 async deleteTransactionByReference(reference: string): Promise<void> {
   try {
-    // Find transactions with the given reference (sale ID)
     const q = query(
       collection(db, COLLECTION_NAME),
       where('reference', '==', reference)
@@ -112,7 +110,6 @@ async deleteTransactionByReference(reference: string): Promise<void> {
     
     const querySnapshot = await getDocs(q);
     
-    // Delete each matching transaction
     const deletePromises = querySnapshot.docs.map(doc => 
       deleteDoc(doc.ref)
     );

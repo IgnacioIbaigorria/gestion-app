@@ -39,7 +39,6 @@ google-services.json
 GoogleService-Info.plist
 firebase-config.js
 firebaseConfig.js
-firebase.typescript
 
 # Build artifacts
 android/

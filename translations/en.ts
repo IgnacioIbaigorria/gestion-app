@@ -1,6 +1,10 @@
 export default {
   // Dashboard
   dashboard: {
+    editBusinessName: 'Edit business name',
+    businessNamePlaceholder: 'Enter business name',
+    businessNameRequired: 'Business name is required',
+    businessNameUpdated: 'Business name updated',
     title: 'Inventory Management',
     subtitle: 'Control Panel',
     currentBalance: 'Current Balance',

@@ -17,10 +17,8 @@ import { cashService } from './cashService';
 const COLLECTION_NAME = 'sales';
 
 export const salesService = {
-  // Agregar una nueva venta
   async addSale(sale: Omit<Sale, 'id'>): Promise<Sale> {
     try {
-      // Agregar timestamp si no se proporciona
       if (!sale.date) {
         sale.date = Timestamp.now();
       }
@@ -48,7 +46,6 @@ export const salesService = {
     }
   },
 
-  // Obtener una venta por ID
   async getSaleById(id: string): Promise<Sale | null> {
     try {
       const docRef = doc(db, COLLECTION_NAME, id);
@@ -65,7 +62,6 @@ export const salesService = {
     }
   },
 
-  // Obtener ventas por rango de fechas
   async getSalesByDateRange(startDate: Timestamp, endDate: Timestamp): Promise<Sale[]> {
     try {
       const q = query(
@@ -86,7 +82,6 @@ export const salesService = {
     }
   },
 
-  // Obtener ventas del día actual
   async getTodaySales(): Promise<Sale[]> {
     try {
       const today = new Date();
@@ -104,7 +99,6 @@ export const salesService = {
     }
   },
 
-  // Calcular total de ventas
   async calculateTotalSales(startDate: Timestamp, endDate: Timestamp): Promise<number> {
     try {
       const sales = await this.getSalesByDateRange(startDate, endDate);
@@ -115,13 +109,10 @@ export const salesService = {
     }
   },
   
-  // Add this method to salesService
   async deleteSale(id: string): Promise<void> {
     try {
-      // First, delete the corresponding cash transaction
       await cashService.deleteTransactionByReference(id);
       
-      // Then delete the sale itself
       await deleteDoc(doc(db, COLLECTION_NAME, id));
     } catch (error) {
       console.error('Error deleting sale:', error);

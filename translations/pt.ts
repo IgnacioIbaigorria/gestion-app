@@ -1,6 +1,10 @@
 export default {
   // Dashboard
   dashboard: {
+    editBusinessName: 'Editar nome do negócio',
+    businessNamePlaceholder: 'Digite o nome do negócio',
+    businessNameRequired: 'O nome do negócio é obrigatório',
+    businessNameUpdated: 'Nome do negócio atualizado',
     title: 'Gestão de Inventário',
     subtitle: 'Painel de Controle',
     currentBalance: 'Saldo Atual',

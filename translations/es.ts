@@ -1,6 +1,10 @@
 export default {
   // Dashboard
   dashboard: {
+    editBusinessName: 'Editar nombre del negocio',
+    businessNamePlaceholder: 'Ingresa el nombre del negocio',
+    businessNameRequired: 'El nombre del negocio es obligatorio',
+    businessNameUpdated: 'Nombre del negocio actualizado',
     title: 'Gestión de Inventario',
     subtitle: 'Panel de Control',
     currentBalance: 'Saldo Actual',
@@ -260,7 +264,8 @@ export default {
     warning: 'Advertencia',
     back: 'Volver',
     search: 'Buscar',
-    selectColor: 'Seleccionar color'
+    selectColor: 'Seleccionar color',
+    errorOcurred: 'Ocurrió un error. Por favor intente nuevamente.',
   },
   settings: {
     title: 'Configuración',
