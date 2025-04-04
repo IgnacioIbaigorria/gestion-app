@@ -16,12 +16,12 @@ import { router } from 'expo-router';
 import { salesService } from '../../../services/salesService';
 import { productService } from '../../../services/productService';
 import { cashService } from '../../../services/cashService';
-import Colors from '../../../constants/Colors';
 import { Product, Sale, SaleItem } from '../../../models/types';
 import ProductSearchInput from '../../../components/ProductSearchInput';
 import { Timestamp } from 'firebase/firestore';
 import { FlatList } from 'react-native';
 import i18n from '../../../translations';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 export default function NewSaleScreen() {
   const [cartItems, setCartItems] = useState<SaleItem[]>([]);
@@ -30,7 +30,7 @@ export default function NewSaleScreen() {
   const [paymentMethod, setPaymentMethod] = useState<string>('Efectivo');
   const [notes, setNotes] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
-
+  const { theme } = useTheme();
   const handleSelectProduct = (product: Product) => {
     setSelectedProduct(product);
     setQuantity('1');
@@ -159,45 +159,58 @@ export default function NewSaleScreen() {
       style={{ flex: 1 }}
     >
       <ScrollView 
-        style={styles.container} 
+        style={[styles.container, {backgroundColor: theme.background}]} 
         nestedScrollEnabled={true}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.card}>
-          <Text style={styles.title}>Nueva Venta</Text>
+        <View style={[styles.card, {backgroundColor: theme.surface}]}>
+          <Text style={[styles.title, {color: theme.text}]}>{i18n.t('sales.new')}</Text>
           
           <View style={[styles.section, { zIndex: 1000 }]}>
-            <Text style={styles.sectionTitle}>Buscar Producto</Text>
+            <Text style={[styles.sectionTitle, {color: theme.primary, borderBottomColor: theme.primaryLight}]}>
+              {i18n.t('sales.searchProduct')}
+            </Text>
             <ProductSearchInput onSelectProduct={handleSelectProduct} />
             
             {selectedProduct && (
-              <View style={styles.selectedProductContainer}>
+              <View style={[styles.selectedProductContainer, {backgroundColor: theme.background}]}>
                 <View style={styles.selectedProductInfo}>
-                  <Text style={styles.selectedProductName}>{selectedProduct.name}</Text>
-                  <Text style={styles.selectedProductPrice}>
-                    Precio: ${selectedProduct.sellingPrice.toFixed(2)}
+                  <Text style={[styles.selectedProductName, {color: theme.text}]}>
+                    {selectedProduct.name}
                   </Text>
-                  <Text style={styles.selectedProductStock}>
-                    Stock disponible: {selectedProduct.quantity || 0}
+                  <Text style={[styles.selectedProductPrice, {color: theme.primary}]}>
+                    {i18n.t('sales.price')}: ${selectedProduct.sellingPrice}
+                  </Text>
+                  <Text style={[styles.selectedProductStock, {color: theme.textLight}]}>
+                    {i18n.t('sales.availableStock')}: {selectedProduct.quantity || 0}
                   </Text>
                 </View>
                 
                 <View style={styles.quantityContainer}>
-                  <Text style={styles.quantityLabel}>Cantidad:</Text>
+                  <Text style={[styles.quantityLabel, {color: theme.text}]}>
+                    {i18n.t('sales.quantity')}:
+                  </Text>
                   <TextInput
-                    style={styles.quantityInput}
+                    style={[styles.quantityInput, {
+                      backgroundColor: theme.surface,
+                      borderColor: theme.primaryLight,
+                      color: theme.text
+                    }]}
                     value={quantity}
                     onChangeText={setQuantity}
                     keyboardType="numeric"
+                    placeholderTextColor={theme.textLight}
                   />
                 </View>
                 
                 <TouchableOpacity
-                  style={styles.addToCartButton}
+                  style={[styles.addToCartButton, {backgroundColor: theme.primary}]}
                   onPress={handleAddToCart}
                 >
-                  <Ionicons name="add-circle" size={20} color={Colors.surface} />
-                  <Text style={styles.addToCartButtonText}>Agregar</Text>
+                  <Ionicons name="add-circle" size={20} color={theme.surface} />
+                  <Text style={[styles.addToCartButtonText, {color: theme.surface}]}>
+                    {i18n.t('sales.add')}
+                  </Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -205,28 +218,30 @@ export default function NewSaleScreen() {
           
           <View style={styles.section}>
             {cartItems.length === 0 ? (
-              <Text style={styles.emptyCartText}>
-                No hay productos en el carrito
+              <Text style={[styles.emptyCartText, {color: theme.textLight}]}>
+                {i18n.t('sales.emptyCart')}
               </Text>
             ) : (
               // Replace FlatList with a simple mapping of items
-              <View style={{ maxHeight: 200 }}>
+              <View style={styles.cartItemsContainer}>
                 {cartItems.map((item, index) => (
-                  <View key={index} style={styles.cartItem}>
+                  <View key={index} style={[styles.cartItem, {borderBottomColor: theme.background}]}>
                     <View style={styles.cartItemInfo}>
-                      <Text style={styles.cartItemName}>{item.productName}</Text>
-                      <Text style={styles.cartItemDetails}>
-                        {item.quantity} x ${item.unitPrice.toFixed(2)}
+                      <Text style={[styles.cartItemName, {color: theme.text}]}>
+                        {item.productName}
+                      </Text>
+                      <Text style={[styles.cartItemDetails, {color: theme.textLight}]}>
+                        {item.quantity} x ${item.unitPrice}
                       </Text>
                     </View>
-                    <Text style={styles.cartItemSubtotal}>
-                      ${item.subtotal.toFixed(2)}
+                    <Text style={[styles.cartItemSubtotal, {color: theme.primary}]}>
+                      ${item.subtotal}
                     </Text>
                     <TouchableOpacity
                       style={styles.removeButton}
                       onPress={() => handleRemoveItem(index)}
                     >
-                      <Ionicons name="trash-outline" size={20} color={Colors.error} />
+                      <Ionicons name="trash-outline" size={20} color={theme.error} />
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -234,10 +249,12 @@ export default function NewSaleScreen() {
             )}
             
             {cartItems.length > 0 && (
-              <View style={styles.totalContainer}>
-                <Text style={styles.totalLabel}>Total:</Text>
-                <Text style={styles.totalAmount}>
-                  ${calculateTotal().toFixed(2)}
+              <View style={[styles.totalContainer, {borderTopColor: theme.primaryLight}]}>
+                <Text style={[styles.totalLabel, {color: theme.text}]}>
+                  {i18n.t('sales.total')}:
+                </Text>
+                <Text style={[styles.totalAmount, {color: theme.primary}]}>
+                  ${calculateTotal()}
                 </Text>
               </View>
             )}
@@ -245,26 +262,36 @@ export default function NewSaleScreen() {
           
           {cartItems.length > 0 && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Detalles de Pago</Text>
+              <Text style={[styles.sectionTitle, {color: theme.primary, borderBottomColor: theme.primaryLight}]}>
+                {i18n.t('sales.paymentMethod')}
+              </Text>
               
               <View style={styles.formGroup}>
-                <Text style={styles.label}>Método de Pago</Text>
+                <Text style={[styles.label, {color: theme.text}]}>
+                  {i18n.t('sales.paymentMethod')}
+                </Text>
                 <View style={styles.paymentMethodContainer}>
-                  {['Efectivo', 'Tarjeta', 'Transferencia'].map((method) => (
+                  {[i18n.t('sales.cash'), i18n.t('sales.transfer')].map((method) => (
                     <TouchableOpacity
                       key={method}
                       style={[
                         styles.paymentMethodButton,
-                        paymentMethod === method && styles.paymentMethodButtonActive
+                        {backgroundColor: theme.background},
+                        paymentMethod === method && [
+                          styles.paymentMethodButtonActive,
+                          {backgroundColor: theme.primary}
+                        ]
                       ]}
                       onPress={() => setPaymentMethod(method)}
                     >
-                      <Text
-                        style={[
-                          styles.paymentMethodButtonText,
-                          paymentMethod === method && styles.paymentMethodButtonTextActive
-                        ]}
-                      >
+                      <Text style={[
+                        styles.paymentMethodButtonText,
+                        {color: theme.text},
+                        paymentMethod === method && [
+                          styles.paymentMethodButtonTextActive,
+                          {color: theme.surface}
+                        ]
+                      ]}>
                         {method}
                       </Text>
                     </TouchableOpacity>
@@ -273,12 +300,19 @@ export default function NewSaleScreen() {
               </View>
               
               <View style={styles.formGroup}>
-                <Text style={styles.label}>Notas (opcional)</Text>
+                <Text style={[styles.label, {color: theme.text}]}>
+                  {i18n.t('sales.notes')}
+                </Text>
                 <TextInput
-                  style={styles.notesInput}
+                  style={[styles.notesInput, {
+                    backgroundColor: theme.background,
+                    borderColor: theme.primaryLight,
+                    color: theme.text
+                  }]}
                   value={notes}
                   onChangeText={setNotes}
-                  placeholder="Agregar notas sobre la venta..."
+                  placeholder={i18n.t('sales.addNotes')}
+                  placeholderTextColor={theme.textLight}
                   multiline
                 />
               </View>
@@ -287,24 +321,35 @@ export default function NewSaleScreen() {
           
           <View style={styles.buttonContainer}>
             <TouchableOpacity
-              style={styles.cancelButton}
+              style={[styles.cancelButton, {backgroundColor: theme.error}]}
               onPress={() => router.back()}
               disabled={loading}
             >
-              <Text style={styles.buttonText}>Cancelar</Text>
+              <Text style={[styles.buttonText, {color: theme.surface}]}>
+                {i18n.t('common.cancel')}
+              </Text>
             </TouchableOpacity>
             
             <TouchableOpacity
-              style={[styles.completeButton, cartItems.length === 0 && styles.disabledButton]}
+              style={[
+                styles.completeButton, 
+                {backgroundColor: theme.success},
+                cartItems.length === 0 && [
+                  styles.disabledButton,
+                  {backgroundColor: theme.textLight}
+                ]
+              ]}
               onPress={handleCompleteSale}
               disabled={loading || cartItems.length === 0}
             >
               {loading ? (
-                <ActivityIndicator size="small" color={Colors.surface} />
+                <ActivityIndicator size="small" color={theme.surface} />
               ) : (
                 <>
-                  <Ionicons name="checkmark-circle" size={20} color={Colors.surface} />
-                  <Text style={styles.buttonText}>Completar Venta</Text>
+                  <Ionicons name="checkmark-circle" size={20} color={theme.surface} />
+                  <Text style={[styles.buttonText, {color: theme.surface}]}>
+                    {i18n.t('sales.complete')}
+                  </Text>
                 </>
               )}
             </TouchableOpacity>
@@ -318,10 +363,12 @@ export default function NewSaleScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+  },
+  cartItemsContainer: {
+    width: '100%',
+    marginVertical: 8,
   },
   card: {
-    backgroundColor: Colors.surface,
     borderRadius: 12,
     padding: 20,
     margin: 16,
@@ -334,7 +381,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: Colors.text,
     marginBottom: 20,
   },
   section: {
@@ -343,14 +389,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: Colors.primary,
     marginBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.primaryLight,
     paddingBottom: 5,
   },
   selectedProductContainer: {
-    backgroundColor: Colors.background,
     borderRadius: 8,
     padding: 12,
     marginTop: 12,
@@ -361,17 +404,14 @@ const styles = StyleSheet.create({
   selectedProductName: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: Colors.text,
     marginBottom: 4,
   },
   selectedProductPrice: {
     fontSize: 14,
-    color: Colors.primary,
     marginBottom: 2,
   },
   selectedProductStock: {
     fontSize: 14,
-    color: Colors.textLight,
   },
   quantityContainer: {
     flexDirection: 'row',
@@ -380,20 +420,16 @@ const styles = StyleSheet.create({
   },
   quantityLabel: {
     fontSize: 16,
-    color: Colors.text,
     marginRight: 12,
   },
   quantityInput: {
-    backgroundColor: Colors.surface,
     borderRadius: 8,
     padding: 8,
     width: 80,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: Colors.primaryLight,
   },
   addToCartButton: {
-    backgroundColor: Colors.primary,
     borderRadius: 8,
     paddingVertical: 10,
     paddingHorizontal: 16,
@@ -403,7 +439,6 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
   addToCartButtonText: {
-    color: Colors.surface,
     fontSize: 16,
     fontWeight: 'bold',
     marginLeft: 8,
@@ -411,7 +446,6 @@ const styles = StyleSheet.create({
   emptyCartText: {
     textAlign: 'center',
     padding: 20,
-    color: Colors.textLight,
     fontStyle: 'italic',
   },
   cartItem: {
@@ -419,7 +453,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.background,
   },
   cartItemInfo: {
     flex: 1,
@@ -427,17 +460,14 @@ const styles = StyleSheet.create({
   cartItemName: {
     fontSize: 16,
     fontWeight: '500',
-    color: Colors.text,
     marginBottom: 4,
   },
   cartItemDetails: {
     fontSize: 14,
-    color: Colors.textLight,
   },
   cartItemSubtotal: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: Colors.primary,
     marginRight: 12,
   },
   removeButton: {
@@ -450,17 +480,14 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: Colors.primaryLight,
   },
   totalLabel: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: Colors.text,
   },
   totalAmount: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: Colors.primary,
   },
   formGroup: {
     marginBottom: 16,
@@ -468,7 +495,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     marginBottom: 8,
-    color: Colors.text,
     fontWeight: '500',
   },
   paymentMethodContainer: {
@@ -477,7 +503,6 @@ const styles = StyleSheet.create({
   },
   paymentMethodButton: {
     flex: 1,
-    backgroundColor: Colors.background,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 8,
@@ -485,22 +510,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   paymentMethodButtonActive: {
-    backgroundColor: Colors.primary,
+    // backgroundColor applied dynamically
   },
   paymentMethodButtonText: {
-    color: Colors.text,
     fontWeight: '500',
   },
   paymentMethodButtonTextActive: {
-    color: Colors.surface,
+    // color applied dynamically
   },
   notesInput: {
-    backgroundColor: Colors.background,
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: Colors.primaryLight,
     minHeight: 80,
     textAlignVertical: 'top',
   },
@@ -509,7 +531,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   cancelButton: {
-    backgroundColor: Colors.textLight,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -518,7 +539,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   completeButton: {
-    backgroundColor: Colors.success,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -529,13 +549,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   disabledButton: {
-    backgroundColor: Colors.textLight,
     opacity: 0.7,
   },
   buttonText: {
-    color: Colors.surface,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
     marginLeft: 8,
+  },
+  scrollContent: {
+    paddingBottom: 20,
+    flex: 1,
   },
 });

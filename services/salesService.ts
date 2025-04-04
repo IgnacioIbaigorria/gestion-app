@@ -8,9 +8,11 @@ import {
   Timestamp,
   getDoc,
   doc,
-  orderBy
+  orderBy,
+  deleteDoc
 } from 'firebase/firestore';
 import { Sale } from '../models/types';
+import { cashService } from './cashService';
 
 const COLLECTION_NAME = 'sales';
 
@@ -109,6 +111,20 @@ export const salesService = {
       return sales.reduce((total, sale) => total + sale.totalAmount, 0);
     } catch (error) {
       console.error("Error al calcular total de ventas: ", error);
+      throw error;
+    }
+  },
+  
+  // Add this method to salesService
+  async deleteSale(id: string): Promise<void> {
+    try {
+      // First, delete the corresponding cash transaction
+      await cashService.deleteTransactionByReference(id);
+      
+      // Then delete the sale itself
+      await deleteDoc(doc(db, COLLECTION_NAME, id));
+    } catch (error) {
+      console.error('Error deleting sale:', error);
       throw error;
     }
   }

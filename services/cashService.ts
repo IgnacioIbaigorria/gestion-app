@@ -6,7 +6,9 @@ import {
   query, 
   where, 
   orderBy, 
-  Timestamp 
+  Timestamp, 
+  deleteDoc,
+  doc
 } from 'firebase/firestore';
 import { CashTransaction } from '../models/types';
 
@@ -89,7 +91,38 @@ export const cashService = {
       throw error;
     }
   },
+// Add these methods to cashService
+async deleteTransaction(id: string): Promise<void> {
+  try {
+    await deleteDoc(doc(db, COLLECTION_NAME, id));
+  } catch (error) {
+    console.error('Error deleting transaction:', error);
+    throw error;
+  }
+},
 
+// Add this method to cashService
+async deleteTransactionByReference(reference: string): Promise<void> {
+  try {
+    // Find transactions with the given reference (sale ID)
+    const q = query(
+      collection(db, COLLECTION_NAME),
+      where('reference', '==', reference)
+    );
+    
+    const querySnapshot = await getDocs(q);
+    
+    // Delete each matching transaction
+    const deletePromises = querySnapshot.docs.map(doc => 
+      deleteDoc(doc.ref)
+    );
+    
+    await Promise.all(deletePromises);
+  } catch (error) {
+    console.error('Error deleting transaction by reference:', error);
+    throw error;
+  }
+},
   // Obtener transacciones del día actual
   async getTodayTransactions(): Promise<CashTransaction[]> {
     try {

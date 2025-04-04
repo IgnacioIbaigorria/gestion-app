@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Dimensions } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Dimensions, TouchableOpacity, RefreshControl } from 'react-native';
 import { BarChart, PieChart } from 'react-native-chart-kit';
 import { productService } from '../../../services/productService';
-import Colors from '../../../constants/Colors';
-
+import DateTimePicker from '@react-native-community/datetimepicker';
+import i18n from '@/translations';
 // Agregar el import del servicio de caja
 import { cashService } from '../../../services/cashService';
+import { salesService } from '@/services/salesService';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface Statistics {
   totalProducts: number;
@@ -21,7 +23,14 @@ interface Statistics {
 }
 
 export default function StatisticsScreen() {
+  const { theme } = useTheme();
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [filterType, setFilterType] = useState<'all' | 'monthly' | 'custom'>('all');
+  const [startDate, setStartDate] = useState(new Date());
+  const [endDate, setEndDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [datePickerType, setDatePickerType] = useState<'start' | 'end'>('start');
   const [stats, setStats] = useState<Statistics>({
     totalProducts: 0,
     totalValue: 0,
@@ -37,18 +46,70 @@ export default function StatisticsScreen() {
 
   useEffect(() => {
     loadStatistics();
-  }, []);
+  }, [filterType, startDate, endDate]);
 
+  // Modify the loadStatistics function to handle negative profits correctly
+  // In the loadStatistics function, add debugging logs
   const loadStatistics = async () => {
     try {
       setLoading(true);
-      const [products, transactions] = await Promise.all([
+      const [products, transactions, sales] = await Promise.all([
         productService.getAllProducts(),
-        cashService.getAllTransactions()
+        cashService.getAllTransactions(),
+        salesService.getAllSales()
       ]);
+      // Add debug logs
       
-      // Calcular estadísticas de productos
-      const statistics = products.reduce((acc, product) => {
+      const startOfDay = new Date(startDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      
+      const endOfDay = new Date(endDate);
+      endOfDay.setHours(23, 59, 59, 999);
+      
+      // Filter transactions based on date range
+      const filteredTransactions = transactions.filter((transaction: { date: { toDate: () => string | number | Date; }; }) => {
+        const transactionDate = transaction.date instanceof Date 
+          ? transaction.date 
+          : new Date(transaction.date.toDate());
+        
+        switch (filterType) {
+          case 'monthly':
+            const today = new Date();
+            const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            firstDayOfMonth.setHours(0, 0, 0, 0);
+            return transactionDate >= firstDayOfMonth;
+          
+          case 'custom':
+            return transactionDate >= startOfDay && transactionDate <= endOfDay;
+          
+          default:
+            return true;
+        }
+      });
+  
+      // Filter sales based on the same date range
+      const filteredSales = sales.filter((sale: { date: { toDate: () => string | number | Date; }; }) => {
+        const saleDate = sale.date instanceof Date 
+          ? sale.date 
+          : new Date(sale.date.toDate());
+        
+        switch (filterType) {
+          case 'monthly':
+            const today = new Date();
+            const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            firstDayOfMonth.setHours(0, 0, 0, 0);
+            return saleDate >= firstDayOfMonth;
+          
+          case 'custom':
+            return saleDate >= startOfDay && saleDate <= endOfDay;
+          
+          default:
+            return true;
+        }
+      });
+  
+      // Calculate product statistics
+      const statistics = products.reduce<Statistics>((acc, product) => {
         // Calculate total products
         acc.totalProducts += 1;
         
@@ -85,8 +146,8 @@ export default function StatisticsScreen() {
       // Calculate potential profit
       statistics.potentialProfit = statistics.potentialIncome - statistics.investedMoney;
       
-      // Calcular estadísticas financieras desde las transacciones
-      const financialStats = transactions.reduce((acc, transaction) => {
+      // Calculate financial statistics from filtered transactions
+      const financialStats = filteredTransactions.reduce((acc: { totalIncome: any; totalExpenses: any; }, transaction: { type: any; amount: any; }) => {
         switch (transaction.type) {
           case 'sale':
           case 'deposit':
@@ -102,12 +163,48 @@ export default function StatisticsScreen() {
         totalIncome: 0,
         totalExpenses: 0
       });
-
-      // Actualizar las estadísticas con los datos financieros
-      statistics.totalIncome = financialStats.totalIncome;
-      statistics.totalExpenses = financialStats.totalExpenses;
-      statistics.netIncome = financialStats.totalIncome - financialStats.totalExpenses;
-      statistics.totalProfit = statistics.netIncome * 0.3; // 30% estimado de ganancia
+  
+      // Calculate actual profit from sales by analyzing each sale's products
+      let actualProfit = 0;
+      
+      // Create a map of products for quick lookup
+      const productsMap = products.reduce<Record<string, any>>((map, product) => {
+        map[product.id!] = product;
+        return map;
+      }, {} as Record<string, any>);
+            
+      // Calculate profit from each sale by comparing selling price to cost price
+      filteredSales.forEach((sale: { items: any[]; }) => {
+        
+        if (sale.items && sale.items.length > 0) {
+          sale.items.forEach(item => {
+            const product = productsMap[item.productId];
+            
+            if (product) {
+              // Ensure all values are valid numbers before calculation
+              const itemPrice = Number(item.unitPrice) || 0;
+              const costPrice = Number(product.costPrice) || 0;
+              const quantity = Number(item.quantity) || 0;
+              
+              // Calculate profit for this item: (selling price - cost price) * quantity
+              const itemProfit = (itemPrice - costPrice) * quantity;
+              
+              actualProfit += isNaN(itemProfit) ? 0 : itemProfit;
+            }
+          });
+        }
+      });
+      
+      // Update statistics with financial data
+      statistics.totalIncome = isNaN(financialStats.totalIncome) ? 0 : Number(financialStats.totalIncome);
+      statistics.totalExpenses = isNaN(financialStats.totalExpenses) ? 0 : Number(financialStats.totalExpenses);
+      statistics.netIncome = statistics.totalIncome - statistics.totalExpenses;
+      
+      // Use actual calculated profit instead of percentage estimate
+      // Ensure we're storing a valid number
+      actualProfit = actualProfit - statistics.totalExpenses;
+      statistics.totalProfit = isNaN(actualProfit) ? 0 : Number(actualProfit.toFixed(2));
+      
       
       setStats(statistics);
     } catch (error) {
@@ -116,12 +213,41 @@ export default function StatisticsScreen() {
       setLoading(false);
     }
   };
+    
+  const handleDateSelect = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      if (datePickerType === 'start') {
+        // Validar que la fecha de inicio no sea posterior a la fecha de fin
+        if (selectedDate > endDate) {
+          // Si la fecha seleccionada es posterior a la fecha de fin, ajustar la fecha de fin
+          setEndDate(selectedDate);
+        }
+        setStartDate(selectedDate);
+      } else {
+        // Validar que la fecha de fin no sea anterior a la fecha de inicio
+        if (selectedDate < startDate) {
+          // Si la fecha seleccionada es anterior a la fecha de inicio, mostrar un mensaje o ajustar
+          // Opción 1: Ajustar automáticamente la fecha de inicio
+          setStartDate(selectedDate);
+        }
+        setEndDate(selectedDate);
+      }
+    }
+  };
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadStatistics();
+    setRefreshing(false);
+  }, [filterType, startDate, endDate]);
+
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-        <Text style={styles.loadingText}>Cargando estadísticas...</Text>
+      <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+        <Text style={[styles.loadingText, { color: theme.textLight }]}>{i18n.t('statistics.loading')}</Text>
       </View>
     );
   }
@@ -129,101 +255,267 @@ export default function StatisticsScreen() {
   const screenWidth = Dimensions.get('window').width;
   const chartWidth = screenWidth - 50; // Ajuste del ancho
 
+  // Modifica la configuración del gráfico para incluir el color de las etiquetas de valores
   const chartConfig = {
-    backgroundColor: Colors.surface,
-    backgroundGradientFrom: Colors.surface,
-    backgroundGradientTo: Colors.surface,
+    backgroundColor: theme.surface,
+    backgroundGradientFrom: theme.surface,
+    backgroundGradientTo: theme.surface,
     decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(81, 150, 244, ${opacity})`,
-    labelColor: (opacity = 1) => Colors.text,
+    color: (opacity = 1) => theme.text,
+    labelColor: (opacity = 1) => theme.text,
     style: {
       borderRadius: 16,
     },
     propsForDots: {
       r: "3",
       strokeWidth: "2",
-      stroke: Colors.primary
+      stroke: theme.primary
     },
     propsForLabels: {
       fontSize: 11,
       fontWeight: 'bold',
-      fill: Colors.text,
+      fill: theme.text,
+    },
+    // Añadir esta propiedad para los valores sobre las barras
+    propsForValues: {
+      fontSize: 12,
+      fontWeight: 'bold',
+      fill: theme.text, // Color negro o el que prefieras
     },
     barPercentage: 0.7,
+    withInnerLines: false, // Quita las líneas internas de la cuadrícula
+    withOuterLines: false,
   };
 
   // Datos para el gráfico de inventario
   const inventoryData = {
-    labels: ['Costo', 'Venta', 'Ganancia'],
+    labels: [
+      i18n.t('statistics.cost'),
+      i18n.t('statistics.sale'),
+      i18n.t('statistics.profit')
+    ],
     datasets: [{
       data: [
         stats.investedMoney,
         stats.potentialIncome,
         stats.potentialProfit
       ],
-      color: (opacity = 1) => Colors.primary,
-      strokeWidth: 2
+      colors: [
+        (opacity = 1) => `rgba(231, 76, 60, ${opacity})`,   // Rojo para costos
+        (opacity = 1) => `rgba(52, 152, 219, ${opacity})`,  // Azul para ventas
+        (opacity = 1) => `rgba(46, 204, 113, ${opacity})`   // Verde para ganancias
+      ]
     }],
-    legend: ['Valor del Inventario']
+    legend: [i18n.t('statistics.valuesSummary')]
+  };
+  
+  const renderFilterControls = () => (
+    <View style={[styles.filterContainer, { backgroundColor: theme.surface }]}>
+      <Text style={[styles.sectionTitle, { color: theme.text }]}>{i18n.t('statistics.analysisTitle')}</Text>
+      <View style={styles.filterButtons}>
+        <TouchableOpacity
+          style={[
+            styles.filterButton, 
+            { backgroundColor: theme.surface, borderColor: theme.border },
+            filterType === 'all' && [styles.filterButtonActive, { backgroundColor: theme.primary }]
+          ]}
+          onPress={() => setFilterType('all')}
+        >
+          <Text style={[
+            styles.filterButtonText, 
+            { color: theme.text },
+            filterType === 'all' && [styles.filterButtonTextActive, { color: theme.surface }]
+          ]}>
+            {i18n.t('statistics.historic')}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.filterButton, 
+            { backgroundColor: theme.surface, borderColor: theme.border },
+            filterType === 'monthly' && [styles.filterButtonActive, { backgroundColor: theme.primary }]
+          ]}
+          onPress={() => setFilterType('monthly')}
+        >
+          <Text style={[
+            styles.filterButtonText, 
+            { color: theme.text },
+            filterType === 'monthly' && [styles.filterButtonTextActive, { color: theme.surface }]
+          ]}>
+            {i18n.t('statistics.monthly')}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.filterButton, 
+            { backgroundColor: theme.surface, borderColor: theme.border },
+            filterType === 'custom' && [styles.filterButtonActive, { backgroundColor: theme.primary }]
+          ]}
+          onPress={() => setFilterType('custom')}
+        >
+          <Text style={[
+            styles.filterButtonText, 
+            { color: theme.text },
+            filterType === 'custom' && [styles.filterButtonTextActive, { color: theme.surface }]
+          ]}>
+            {i18n.t('statistics.custom')}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {filterType === 'custom' && (
+        <View style={styles.datePickerContainer}>
+          <TouchableOpacity
+            style={[styles.dateButton, { 
+              backgroundColor: theme.background, 
+              borderColor: theme.border 
+            }]}
+            onPress={() => {
+              setDatePickerType('start');
+              setShowDatePicker(true);
+            }}
+          >
+            <Text style={[styles.dateButtonText, { color: theme.text }]}>
+              {i18n.t('statistics.from')}: {startDate.toLocaleDateString()}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.dateButton, { 
+              backgroundColor: theme.background, 
+              borderColor: theme.border 
+            }]}
+            onPress={() => {
+              setDatePickerType('end');
+              setShowDatePicker(true);
+            }}
+          >
+            <Text style={[styles.dateButtonText, { color: theme.text }]}>
+              {i18n.t('statistics.to')}: {endDate.toLocaleDateString()}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {showDatePicker && (
+        <DateTimePicker
+          value={datePickerType === 'start' ? startDate : endDate}
+          mode="date"
+          onChange={handleDateSelect}
+        />
+      )}
+    </View>
+  );
+  // In the financial data section
+  const financialData = {
+    labels: [
+      i18n.t('statistics.income'),
+      i18n.t('statistics.expenses'),
+      i18n.t('statistics.net'),
+      i18n.t('statistics.profit')
+    ],
+    datasets: [{
+      data: [
+        isNaN(stats.totalIncome) ? 0 : stats.totalIncome,
+        isNaN(stats.totalExpenses) ? 0 : -Math.abs(stats.totalExpenses), // Make expenses always negative for the chart
+        isNaN(stats.netIncome) ? 0 : stats.netIncome,
+        isNaN(stats.totalProfit) ? 0 : stats.totalProfit
+      ],
+      // Colors remain the same
+      colors: [
+        (opacity = 1) => `rgba(46, 204, 113, ${opacity})`,  // Verde para ingresos
+        (opacity = 1) => `rgba(231, 76, 60, ${opacity})`,   // Rojo para egresos
+        (opacity = 1) => stats.netIncome >= 0 
+          ? `rgba(52, 152, 219, ${opacity})`  // Azul para neto positivo
+          : `rgba(231, 76, 60, ${opacity})`,  // Rojo para neto negativo
+        (opacity = 1) => stats.totalProfit >= 0
+          ? `rgba(46, 204, 113, ${opacity})`  // Verde para ganancia positiva
+          : `rgba(231, 76, 60, ${opacity})`   // Rojo para ganancia negativa
+      ]
+    }]
   };
 
+  const hexToRgb = (hex: string) => {
+    // Eliminar el # si existe
+    hex = hex.replace('#', '');
+    
+    // Convertir a RGB
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    
+    return `${r}, ${g}, ${b}`;
+  };
+    
+
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Estadísticas de Inventario</Text>
+    <ScrollView 
+      style={[styles.container, { backgroundColor: theme.background }]}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={[theme.primary]}
+          tintColor={theme.primary}
+        />
+      }
+    >
+      <View style={[styles.header, { backgroundColor: theme.surface }]}>
+        <Text style={[styles.title, { color: theme.text }]}>{i18n.t('statistics.title')}</Text>
       </View>
+
+      {renderFilterControls()}
 
       <View style={styles.statsContainer}>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{stats.totalProducts}</Text>
-          <Text style={styles.statLabel}>Productos Totales</Text>
+        <View style={[styles.statCard, { backgroundColor: theme.surface }]}>
+          <Text style={[styles.statValue, { color: theme.text }]}>{stats.totalProducts}</Text>
+          <Text style={[styles.statLabel, { color: theme.textLight }]}>{i18n.t('statistics.totalProducts')}</Text>
         </View>
 
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{stats.lowStockProducts}</Text>
-          <Text style={styles.statLabel}>Productos con Stock Bajo</Text>
+        <View style={[styles.statCard, { backgroundColor: theme.surface }]}>
+          <Text style={[styles.statValue, { color: theme.text }]}>{stats.lowStockProducts}</Text>
+          <Text style={[styles.statLabel, { color: theme.textLight }]}>{i18n.t('statistics.lowStockProducts')}</Text>
         </View>
 
-        <View style={[styles.statCard]}>
-          <Text style={styles.statValue}>
+        <View style={[styles.statCard, { backgroundColor: theme.surface }]}>
+          <Text style={[styles.statValue, { color: theme.text }]}>
             ${stats.potentialProfit.toFixed(2)}
           </Text>
-          <Text style={styles.statLabel}>Ganancia Potencial</Text>
+          <Text style={[styles.statLabel, { color: theme.textLight }]}>{i18n.t('statistics.potentialProfit')}</Text>
         </View>
 
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>
+        <View style={[styles.statCard, { backgroundColor: theme.surface }]}>
+          <Text style={[styles.statValue, { color: theme.text }]}>
             ${stats.investedMoney.toFixed(2)}
           </Text>
-          <Text style={styles.statLabel}>Dinero Invertido</Text>
+          <Text style={[styles.statLabel, { color: theme.textLight }]}>{i18n.t('statistics.investedMoney')}</Text>
         </View>
 
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>
+        <View style={[styles.statCard, { backgroundColor: theme.surface }]}>
+          <Text style={[styles.statValue, { color: theme.text }]}>
             ${stats.potentialIncome.toFixed(2)}
           </Text>
-          <Text style={styles.statLabel}>Ingreso Potencial</Text>
+          <Text style={[styles.statLabel, { color: theme.textLight }]}>{i18n.t('statistics.potentialIncome')}</Text>
         </View>
       </View>
 
-      <View style={styles.chartContainer}>
-        <Text style={styles.chartTitle}>Distribución de Capital</Text>
+      <View style={[styles.chartContainer, { backgroundColor: theme.surface }]}>
+        <Text style={[styles.chartTitle, { color: theme.text }]}>{i18n.t('statistics.capitalDistribution')}</Text>
         <PieChart
           data={[
             {
-              name: 'Inversión',
+              name: i18n.t('statistics.investment'),
               value: stats.investedMoney,
-              color: Colors.primaryLight,
-              legendFontColor: Colors.text,
+              color: theme.primaryLight,
+              legendFontColor: theme.text,
               legendFontSize: 12,
               legendFontWeight: 'bold',
               valuePrefix: '$',
             },
             {
-              name: 'Ganancia',
+              name: i18n.t('statistics.profit'),
               value: stats.potentialProfit,
-              color: Colors.success,
-              legendFontColor: Colors.text,
+              color: theme.success,
+              legendFontColor: theme.text,
               legendFontSize: 12,
               legendFontWeight: 'bold',
               valuePrefix: '$',
@@ -243,12 +535,12 @@ export default function StatisticsScreen() {
       </View>
 
       <View style={styles.chartSection}>
-        <Text style={styles.sectionTitle}>Análisis de Inventario</Text>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>{i18n.t('statistics.inventoryAnalysis')}</Text>
         
-        <View style={styles.chartContainer}>
-          <Text style={styles.chartTitle}>Resumen de Valores</Text>
-          <Text style={styles.chartDescription}>
-            Comparación entre costo de inventario, precio de venta y ganancia potencial
+        <View style={[styles.chartContainer, { backgroundColor: theme.surface }]}>
+          <Text style={[styles.chartTitle, { color: theme.text }]}>{i18n.t('statistics.valuesSummary')}</Text>
+          <Text style={[styles.chartDescription, { color: theme.textLight }]}>
+            {i18n.t('statistics.inventoryComparison')}
           </Text>
           <BarChart
             yAxisLabel="$"
@@ -259,21 +551,24 @@ export default function StatisticsScreen() {
             chartConfig={chartConfig}
             verticalLabelRotation={0}
             showValuesOnTopOfBars
+            withCustomBarColorFromData={true}
+            flatColor={true}
             fromZero
-            style={{...styles.chart, marginLeft: 0}} // Ajustamos el margen izquierdo
-            />
-          <View style={styles.legendContainer}>
-            <View style={styles.legendItem}>
-              <Text style={styles.legendLabel}>Costo Total:</Text>
-              <Text style={styles.legendValue}>${stats.investedMoney.toFixed(2)}</Text>
+            withInnerLines={false}
+            style={{...styles.chart, marginLeft: 0}}
+          />
+          <View style={[styles.legendContainer, { backgroundColor: theme.background }]}>
+            <View style={[styles.legendItem, { borderBottomColor: theme.border }]}>
+              <Text style={[styles.legendLabel, { color: theme.text }]}>{i18n.t('statistics.totalCost')}:</Text>
+              <Text style={[styles.legendValue, { color: theme.text }]}>${stats.investedMoney.toFixed(2)}</Text>
             </View>
-            <View style={styles.legendItem}>
-              <Text style={styles.legendLabel}>Venta Total:</Text>
-              <Text style={styles.legendValue}>${stats.potentialIncome.toFixed(2)}</Text>
+            <View style={[styles.legendItem, { borderBottomColor: theme.border }]}>
+              <Text style={[styles.legendLabel, { color: theme.text }]}>{i18n.t('statistics.totalSale')}:</Text>
+              <Text style={[styles.legendValue, { color: theme.text }]}>${stats.potentialIncome.toFixed(2)}</Text>
             </View>
-            <View style={styles.legendItem}>
-              <Text style={styles.legendLabel}>Ganancia Esperada:</Text>
-              <Text style={[styles.legendValue, { color: Colors.success }]}>
+            <View style={[styles.legendItem, { borderBottomColor: theme.border }]}>
+              <Text style={[styles.legendLabel, { color: theme.text }]}>{i18n.t('statistics.expectedProfit')}:</Text>
+              <Text style={[styles.legendValue, { color: theme.success }]}>
                 ${stats.potentialProfit.toFixed(2)}
               </Text>
             </View>
@@ -281,74 +576,66 @@ export default function StatisticsScreen() {
         </View>
       </View>
       
-        <View style={styles.balanceContainer}>
-          <Text style={styles.sectionTitle}>Balance financiero</Text>
-          
-          <View style={styles.chartContainer}>
-            <Text style={styles.chartTitle}>Resumen financiero</Text>
-            <Text style={styles.chartDescription}>
-              Análisis de ingresos, egresos y ganancias
-            </Text>
-            <BarChart
-              yAxisLabel="$"
-              yAxisSuffix=""
-              data={{
-                labels: ['Ingresos', 'Egresos', 'Neto', 'Ganancia'],
-                datasets: [{
-                  data: [
-                    stats.totalIncome,
-                    stats.totalExpenses,
-                    stats.netIncome,
-                    stats.totalProfit
-                  ],
-                  
-                  color: (opacity = 1) => Colors.primary,
-                  strokeWidth: 2
-                }],
-              }}
-              width={chartWidth - 60}
-              height={200}
-              chartConfig={{
-                ...chartConfig,
-                color: (opacity = 1) => `rgba(46, 204, 113, ${opacity})`,
-              }}
-              style={{
-                ...styles.chart,
-                marginVertical: 16,  // Aumentar espacio vertical
-              }}
-              showValuesOnTopOfBars
-              fromZero
-            />
-            <View style={styles.legendContainer}>
-              <View style={styles.legendItem}>
-                <Text style={styles.legendLabel}>Ingresos totales:</Text>
-                <Text style={[styles.legendValue, { color: Colors.success }]}>
-                  ${stats.totalIncome.toFixed(2)}
-                </Text>
-              </View>
-              <View style={styles.legendItem}>
-                <Text style={styles.legendLabel}>Egresos totales:</Text>
-                <Text style={[styles.legendValue, { color: Colors.error }]}>
-                  ${stats.totalExpenses.toFixed(2)}
-                </Text>
-              </View>
-              <View style={styles.legendItem}>
-                <Text style={styles.legendLabel}>Balance neto:</Text>
-                <Text style={[styles.legendValue, { 
-                  color: stats.netIncome >= 0 ? Colors.success : Colors.error 
-                }]}>
-                  ${stats.netIncome.toFixed(2)}
-                </Text>
-              </View>
-              <View style={styles.legendItem}>
-                <Text style={styles.legendLabel}>Ganancia estimada:</Text>
-                <Text style={[styles.legendValue, { color: Colors.primary }]}>
-                  ${stats.totalProfit.toFixed(2)}
-                </Text>
-              </View>
+      <View style={styles.balanceContainer}>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>{i18n.t('statistics.financialBalance')}</Text>
+        
+        <View style={[styles.chartContainer, { backgroundColor: theme.surface }]}>
+          <Text style={[styles.chartTitle, { color: theme.text }]}>{i18n.t('statistics.financialSummary')}</Text>
+          <Text style={[styles.chartDescription, { color: theme.textLight }]}>
+            {i18n.t('statistics.financialAnalysis')}
+          </Text>
+          <BarChart
+            yAxisLabel="$"
+            yAxisSuffix=""
+            data={financialData}
+            width={chartWidth - 60}
+            height={200}
+            chartConfig={{
+              ...chartConfig,
+              decimalPlaces: 0,
+            }}          
+            style={{
+              ...styles.chart,
+              marginVertical: 16,
+            }}
+            showValuesOnTopOfBars
+            fromZero
+            withCustomBarColorFromData={true}
+            flatColor={true}
+            withInnerLines={false}
+          />
+          <View style={[styles.legendContainer, { backgroundColor: theme.background }]}>
+            <View style={[styles.legendItem, { borderBottomColor: theme.border }]}>
+              <Text style={[styles.legendLabel, { color: theme.text }]}>{i18n.t('statistics.totalIncome')}:</Text>
+              <Text style={[styles.legendValue, { color: theme.success }]}>
+                ${stats.totalIncome.toFixed(2)}
+              </Text>
+            </View>
+            <View style={[styles.legendItem, { borderBottomColor: theme.border }]}>
+              <Text style={[styles.legendLabel, { color: theme.text }]}>{i18n.t('statistics.totalExpenses')}:</Text>
+              <Text style={[styles.legendValue, { color: theme.error }]}>
+                -${stats.totalExpenses.toFixed(2)}
+              </Text>
+            </View>
+            <View style={[styles.legendItem, { borderBottomColor: theme.border }]}>
+              <Text style={[styles.legendLabel, { color: theme.text }]}>{i18n.t('statistics.netBalance')}:</Text>
+              <Text style={[styles.legendValue, { 
+                color: stats.netIncome >= 0 ? theme.success : theme.error 
+              }]}>
+                ${stats.netIncome.toFixed(2)}
+              </Text>
+            </View>
+            <View style={[styles.legendItem, { borderBottomColor: theme.border }]}>
+              <Text style={[styles.legendLabel, { color: theme.text }]}>{i18n.t('statistics.estimatedProfit')}:</Text>
+              <Text style={[styles.legendValue, { 
+                color: stats.totalProfit >= 0 ? theme.primary : theme.error 
+              }]}>
+                ${stats.totalProfit.toFixed(2)}
+              </Text>
             </View>
           </View>
         </View>
+      </View>
     </ScrollView>
   );
 }
@@ -357,33 +644,27 @@ export default function StatisticsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.background,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: Colors.textLight,
   },
   header: {
     padding: 20,
-    backgroundColor: Colors.surface,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: Colors.text,
   },
   statsContainer: {
     padding: 16,
   },
   statCard: {
-    backgroundColor: Colors.surface,
     borderRadius: 12,
     padding: 20,
     marginBottom: 16,
@@ -394,20 +675,17 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
   },
   highlightCard: {
-    backgroundColor: Colors.primary,
+    // backgroundColor applied dynamically
   },
   statValue: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: Colors.text,
     marginBottom: 8,
   },
   statLabel: {
     fontSize: 16,
-    color: Colors.textLight,
   },
   chartContainer: {
-    backgroundColor: Colors.surface,
     borderRadius: 12,
     padding: 16,
     marginHorizontal: 16,
@@ -421,7 +699,6 @@ const styles = StyleSheet.create({
   chartTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: Colors.text,
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -431,13 +708,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: Colors.text,
     marginBottom: 16,
     marginLeft: 4,
   },
   chartDescription: {
     fontSize: 14,
-    color: Colors.textLight,
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -448,7 +723,6 @@ const styles = StyleSheet.create({
   legendContainer: {
     marginTop: 16,
     padding: 8,
-    backgroundColor: Colors.background,
     borderRadius: 8,
   },
   legendItem: {
@@ -458,19 +732,66 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
   },
   legendLabel: {
     fontSize: 14,
-    color: Colors.text,
     fontWeight: '500',
   },
   legendValue: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: Colors.text,
   },
   balanceContainer: {
     padding: 16,
+  },
+  filterContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  filterTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  filterButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    borderRadius: 8,
+  },
+  filterButton: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 2,
+    borderRadius: 8,
+    marginHorizontal: 2,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  filterButtonActive: {
+    // backgroundColor applied dynamically
+  },
+  filterButtonText: {
+    fontSize: 14,
+  },
+  filterButtonTextActive: {
+    fontWeight: '600',
+  },
+  datePickerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  dateButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    marginHorizontal: 4,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  dateButtonText: {
+    fontSize: 14,
   },
 });

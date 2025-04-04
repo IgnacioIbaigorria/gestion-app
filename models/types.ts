@@ -8,11 +8,18 @@ export interface Product {
   sellingPrice: number;
   quantity: number;
   profitMargin: number;
-  tags?: string[];
-  lowStockThreshold?: number; // New field
+  lowStockThreshold?: number;
+  categoryId?: string | null;
+  tags?: string[]; // This is defined as string[] (array of tag IDs)
 }
 
 export interface Tag {
+  id?: string;
+  name: string;
+  color?: string;
+}
+
+export interface Category {
   id?: string;
   name: string;
   color?: string;

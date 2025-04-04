@@ -13,12 +13,17 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { productService } from '../../../services/productService';
-import Colors from '../../../constants/Colors';
 import { Product } from '../../../models/types';
 import { Tag } from '../../../models/types';
 import { tagService } from '../../../services/tagService';
+import { categoryService } from '../../../services/categoryService';
+import { Category } from '../../../models/types';
+import i18n from '@/translations';
+import { useIsFocused } from '@react-navigation/native';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export default function AddEditProductScreen() {
+  const { theme } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [loading, setLoading] = useState<boolean>(false);
   const [initialLoading, setInitialLoading] = useState<boolean>(false);
@@ -31,6 +36,11 @@ export default function AddEditProductScreen() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [lowStockThreshold, setLowStockThreshold] = useState<string>('5');
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  
+  // Add isFocused hook to detect when screen comes into focus
+  const isFocused = useIsFocused();
 
   useEffect(() => {
     if (id) {
@@ -38,9 +48,15 @@ export default function AddEditProductScreen() {
       loadProduct(id);
     }
   }, [id]);
+  
+  // Update this useEffect to reload tags and categories when screen is focused
   useEffect(() => {
-    loadTags();
-  }, []);
+    if (isFocused) {
+      loadTags();
+      loadCategories();
+    }
+  }, [isFocused]);
+
   const loadTags = async () => {
     try {
       const tagsData = await tagService.getAllTags();
@@ -49,8 +65,17 @@ export default function AddEditProductScreen() {
       console.error('Error loading tags:', error);
     }
   };
-  
 
+  const loadCategories = async () => {
+    try {
+      const categoriesData = await categoryService.getAllCategories();
+      setCategories(categoriesData);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    }
+  };
+
+  // Update loadProduct
   const loadProduct = async (productId: string) => {
     try {
       setInitialLoading(true);
@@ -64,6 +89,7 @@ export default function AddEditProductScreen() {
         setProfitMargin(product.profitMargin?.toString() || '0');
         setSelectedTags(product.tags || []);
         setLowStockThreshold(product.lowStockThreshold?.toString() || '5');
+        setSelectedCategory(product.categoryId || '');
       } else {
         Alert.alert('Error', 'No se encontró el producto');
         router.back();
@@ -102,7 +128,7 @@ export default function AddEditProductScreen() {
     
     if (cost > 0 && margin >= 0) {
       const selling = cost * (1 + margin / 100);
-      setSellingPrice(selling.toFixed(2));
+      setSellingPrice(selling.toFixed(0));
     }
   };
 
@@ -146,6 +172,7 @@ export default function AddEditProductScreen() {
   };
 
   // Extract the save logic to a separate function
+  // Update saveProduct function to include categoryId
   const saveProduct = async () => {
     try {
       setLoading(true);
@@ -157,18 +184,36 @@ export default function AddEditProductScreen() {
         sellingPrice: parseFloat(sellingPrice) || 0,
         profitMargin: parseFloat(profitMargin) || 0,
         tags: selectedTags,
-        lowStockThreshold: parseInt(lowStockThreshold, 10) || 5
+        lowStockThreshold: parseInt(lowStockThreshold, 10) || 5,
+        categoryId: selectedCategory || null,
       };
+      
+      let updatedProductId = id;
       
       if (isEditing && id) {
         await productService.updateProduct(id, productData);
-        Alert.alert('Éxito', 'Producto actualizado correctamente');
+        Alert.alert('Éxito', 'Producto actualizado correctamente', [
+          { 
+            text: 'OK', 
+            onPress: () => {
+              // Return to products list with the updated product ID as a parameter
+              router.replace(`/productos?updatedProductId=${id}`);
+            }
+          }
+        ]);
       } else {
-        await productService.addProduct(productData);
-        Alert.alert('Éxito', 'Producto agregado correctamente');
+        const newProduct = await productService.addProduct(productData);
+        updatedProductId = newProduct.id || '';
+        Alert.alert('Éxito', 'Producto agregado correctamente', [
+          { 
+            text: 'OK', 
+            onPress: () => {
+              // Return to products list with the new product ID as a parameter
+              router.replace(`/productos?updatedProductId=${newProduct.id}`);
+            }
+          }
+        ]);
       }
-      
-      router.back();
     } catch (error) {
       Alert.alert('Error', 'No se pudo guardar el producto');
       console.error(error);
@@ -179,9 +224,9 @@ export default function AddEditProductScreen() {
 
   if (initialLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-        <Text style={styles.loadingText}>Cargando producto...</Text>
+      <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+        <Text style={[styles.loadingText, { color: theme.textLight }]}>Cargando producto...</Text>
       </View>
     );
   }
@@ -191,42 +236,54 @@ export default function AddEditProductScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={{ flex: 1 }}
     >
-      <ScrollView style={styles.container}>
-        <View style={styles.formContainer}>
-          <Text style={styles.title}>
-            {isEditing ? 'Editar Producto' : 'Nuevo Producto'}
+      <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
+        <View style={[styles.formContainer, { backgroundColor: theme.surface }]}>
+          <Text style={[styles.title, { color: theme.text }]}>
+            {isEditing ? i18n.t('products.edit') : i18n.t('products.add')}
           </Text>
           
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Nombre del Producto</Text>
+            <Text style={[styles.label, { color: theme.text }]}>{i18n.t('products.productName')}</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { 
+                backgroundColor: theme.background, 
+                borderColor: theme.primaryLight,
+                color: theme.text
+              }]}
               value={name}
               onChangeText={setName}
-              placeholder="Ingresa el nombre del producto"
+              placeholder={i18n.t('products.enterProductName')}
+              placeholderTextColor={theme.textLight}
             />
           </View>
           
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Cantidad</Text>
+            <Text style={[styles.label, { color: theme.text }]}>{i18n.t('products.quantity')}</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { 
+                backgroundColor: theme.background, 
+                borderColor: theme.primaryLight,
+                color: theme.text
+              }]}
               value={quantity}
               onChangeText={setQuantity}
               keyboardType="numeric"
               placeholder="0"
+              placeholderTextColor={theme.textLight}
             />
           </View>
           
-          
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Precio de Costo</Text>
+            <Text style={[styles.label, { color: theme.text }]}>{i18n.t('products.costPrice')}</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { 
+                backgroundColor: theme.background, 
+                borderColor: theme.primaryLight,
+                color: theme.text
+              }]}
               value={costPrice}
               onChangeText={setCostPrice}
               onEndEditing={() => {
-                // Recalcular margen o precio de venta cuando termina de editar el costo
                 if (parseFloat(sellingPrice) > 0) {
                   calculateProfitMargin();
                 } else if (parseFloat(profitMargin) > 0) {
@@ -235,28 +292,35 @@ export default function AddEditProductScreen() {
               }}
               keyboardType="numeric"
               placeholder="0.00"
+              placeholderTextColor={theme.textLight}
             />
           </View>
           
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Precio de Venta</Text>
+            <Text style={[styles.label, { color: theme.text }]}>{i18n.t('products.sellingPrice')}</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { 
+                backgroundColor: theme.background, 
+                borderColor: theme.primaryLight,
+                color: theme.text
+              }]}
               value={sellingPrice}
               onChangeText={setSellingPrice}
-              onEndEditing={() => {
-                // Recalcular margen cuando termina de editar el precio de venta
-                calculateProfitMargin();
-              }}
+              onEndEditing={calculateProfitMargin}
               keyboardType="numeric"
               placeholder="0.00"
+              placeholderTextColor={theme.textLight}
             />
           </View>
           
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Margen de Ganancia (%)</Text>
+            <Text style={[styles.label, { color: theme.text }]}>{i18n.t('products.profitMargin')} (%)</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { 
+                backgroundColor: theme.background, 
+                borderColor: theme.primaryLight,
+                color: theme.text
+              }]}
               value={profitMargin}
               onChangeText={setProfitMargin}
               onEndEditing={() => {
@@ -265,33 +329,43 @@ export default function AddEditProductScreen() {
               }}
               keyboardType="numeric"
               placeholder="0.00"
+              placeholderTextColor={theme.textLight}
             />
           </View>
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Stock Bajo</Text>
+            <Text style={[styles.label, { color: theme.text }]}>{i18n.t('products.lowStock')}</Text>
             <View style={styles.thresholdContainer}>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  backgroundColor: theme.background, 
+                  borderColor: theme.primaryLight,
+                  color: theme.text
+                }]}
                 value={lowStockThreshold}
                 onChangeText={setLowStockThreshold}
                 keyboardType="numeric"
                 placeholder="5"
+                placeholderTextColor={theme.textLight}
               />
-              <Text style={styles.thresholdHelperText}>
-                Alertar cuando el stock sea menor a esta cantidad
+              <Text style={[styles.thresholdHelperText, { color: theme.textLight }]}>
+                {i18n.t('products.lowStockThresholdDesc')}
               </Text>
             </View>
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Etiquetas</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Etiquetas</Text>
             <View style={styles.tagsContainer}>
               {availableTags.map((tag) => (
                 <TouchableOpacity
                   key={tag.id}
                   style={[
                     styles.tagButton,
-                    selectedTags.includes(tag.id!) && styles.tagButtonSelected
+                    { 
+                      backgroundColor: selectedTags.includes(tag.id!) ? theme.background : theme.surface,
+                      borderColor: tag.color || theme.primary,
+                      borderWidth: 1, 
+                    }
                   ]}
                   onPress={() => {
                     setSelectedTags(prev => 
@@ -303,7 +377,10 @@ export default function AddEditProductScreen() {
                 >
                   <Text style={[
                     styles.tagButtonText,
-                    selectedTags.includes(tag.id!) && styles.tagButtonTextSelected
+                    { 
+                      color: selectedTags.includes(tag.id!) ? theme.surface : theme.text || theme.surface,
+                      borderColor: tag.color || theme.primary, 
+                    }
                   ]}>
                     {tag.name}
                   </Text>
@@ -314,27 +391,63 @@ export default function AddEditProductScreen() {
               style={styles.manageTags}
               onPress={() => router.push('/productos/tags')}
             >
-              <Text style={styles.manageTagsText}>Gestionar Etiquetas</Text>
+              <Text style={[styles.manageTagsText, { color: theme.text }]}>{i18n.t('products.manageTags')}</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.formGroup}>
+            <Text style={[styles.label, { color: theme.text }]}>Categoría</Text>
+            <View style={styles.categoriesContainer}>
+              {categories.map((category) => (
+                <TouchableOpacity
+                  key={category.id}
+                  style={[
+                    styles.categoryButton,
+                    { 
+                      backgroundColor: selectedCategory === category.id ? category.color : theme.surface,
+                      borderColor: category.color || theme.primary ,
+                      borderWidth: 1,
+                    }
+                  ]}
+                  onPress={() => {
+                    setSelectedCategory(currentCategory => 
+                      currentCategory === category.id ? '' : category.id!
+                    );
+                  }}
+                >
+                  <Text style={[
+                    styles.categoryButtonText,
+                    { color: selectedCategory === category.id ? theme.surface : theme.text || theme.primary }
+                  ]}>
+                    {category.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TouchableOpacity
+              style={styles.manageCategories}
+              onPress={() => router.push('/productos/categorias')}
+            >
+              <Text style={[styles.manageCategoriesText, { color: theme.text }]}>{i18n.t('products.manageCategories')}</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.buttonContainer}>
             <TouchableOpacity
-              style={styles.cancelButton}
+              style={[styles.cancelButton, { backgroundColor: theme.error }]}
               onPress={() => router.back()}
               disabled={loading}
             >
-              <Text style={styles.buttonText}>Cancelar</Text>
+              <Text style={[styles.buttonText, { color: theme.surface }]}>{i18n.t('common.cancel')}</Text>
             </TouchableOpacity>
             
             <TouchableOpacity
-              style={styles.saveButton}
+              style={[styles.saveButton, { backgroundColor: theme.primary }]}
               onPress={handleSave}
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator size="small" color={Colors.surface} />
+                <ActivityIndicator size="small" color={theme.surface} />
               ) : (
-                <Text style={styles.buttonText}>Guardar</Text>
+                <Text style={[styles.buttonText, { color: theme.surface }]}>{i18n.t('common.save')}</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -347,21 +460,17 @@ export default function AddEditProductScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.background,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: Colors.textLight,
   },
   formContainer: {
-    backgroundColor: Colors.surface,
     borderRadius: 12,
     padding: 20,
     margin: 16,
@@ -374,7 +483,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: Colors.text,
     marginBottom: 20,
   },
   formGroup: {
@@ -383,16 +491,13 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     marginBottom: 8,
-    color: Colors.text,
     fontWeight: '500',
   },
   input: {
-    backgroundColor: Colors.background,
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: Colors.primaryLight,
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -400,7 +505,6 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   saveButton: {
-    backgroundColor: Colors.primary,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 20,
@@ -409,7 +513,6 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   cancelButton: {
-    backgroundColor: Colors.textLight,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 20,
@@ -418,7 +521,6 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   buttonText: {
-    color: Colors.surface,
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -428,40 +530,55 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   tagButton: {
-    backgroundColor: Colors.background,
     borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 6,
     marginRight: 8,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: Colors.primary,
-  },
-  tagButtonSelected: {
-    backgroundColor: Colors.primary,
   },
   tagButtonText: {
-    color: Colors.primary,
     fontSize: 14,
-  },
-  tagButtonTextSelected: {
-    color: Colors.surface,
   },
   manageTags: {
     marginTop: 8,
   },
   manageTagsText: {
-    color: Colors.primary,
     textDecorationLine: 'underline',
+    fontSize: 16,
+    fontWeight: '500',
   },
   thresholdContainer: {
     marginBottom: 8,
   },
   thresholdHelperText: {
     fontSize: 12,
-    color: Colors.textLight,
     marginTop: 4,
     marginLeft: 4,
+  },
+  categoriesContainer: {
+    marginVertical: 8,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  categoryButton: {
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 8,
+    borderWidth: 1,
+    marginVertical: 5,
+  },
+  categoryButtonText: {
+    fontSize: 14,
+  },
+  manageCategories: {
+    marginTop: 8,
+  },
+  manageCategoriesText: {
+    textDecorationLine: 'underline',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
 

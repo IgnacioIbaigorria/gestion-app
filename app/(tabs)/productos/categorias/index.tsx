@@ -1,142 +1,132 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { tagService } from '@/services/tagService';
-import i18n from '@/translations';
-import { Tag } from '../../../../models/types';
+import { categoryService } from '../../../../services/categoryService';
+import { Category } from '../../../../models/types';
+import i18n from '../../../../translations';
 import ColorPicker from '../../../../components/ColorPicker';
 import { useTheme } from '@/contexts/ThemeContext';
 
-export default function TagsScreen() {
+export default function CategoriesScreen() {
   const { theme } = useTheme();
-  const [tags, setTags] = useState<Tag[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [newTagName, setNewTagName] = useState<string>('');
-  const [editingTag, setEditingTag] = useState<Tag | null>(null);
+  const [newCategoryName, setNewCategoryName] = useState<string>('');
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [showColorPicker, setShowColorPicker] = useState<boolean>(false);
-  const [selectedColor, setSelectedColor] = useState<string>('#FF5252');
+  const [selectedColor, setSelectedColor] = useState<string>('#448AFF');
 
   useEffect(() => {
-    loadTags();
+    loadCategories();
   }, []);
 
-  const loadTags = async () => {
+  const loadCategories = async () => {
     try {
       setLoading(true);
-      const tagsData = await tagService.getAllTags();
-      setTags(tagsData);
+      const categoriesData = await categoryService.getAllCategories();
+      setCategories(categoriesData);
     } catch (error) {
-      Alert.alert(i18n.t('common.error'), i18n.t('tags.errorAddTag'));
+      Alert.alert('Error', 'No se pudieron cargar las categorías');
       console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddTag = async () => {
-    if (!newTagName.trim()) {
-      Alert.alert(i18n.t('common.error'), i18n.t('tags.errorEmptyTagName'));
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim()) {
+      Alert.alert('Error', 'El nombre de la categoría no puede estar vacío');
       return;
     }
 
-    if (newTagName.trim().length < 3) {
-      Alert.alert(i18n.t('common.error'), i18n.t('tags.errorTagNameLength'));
-      return;
-    }
-
-    // Verificar si ya existe una etiqueta con el mismo nombre
-    const tagExists = tags.some(tag => 
-      tag.name.toLowerCase() === newTagName.trim().toLowerCase()
+    // Verificar si ya existe una categoría con el mismo nombre
+    const categoryExists = categories.some(category => 
+      category.name.toLowerCase() === newCategoryName.trim().toLowerCase()
     );
 
-    if (tagExists) {
-      Alert.alert(i18n.t('common.error'), i18n.t('tags.errorTagNameExists'));
+    if (categoryExists) {
+      Alert.alert('Error', 'Ya existe una categoría con ese nombre');
       return;
     }
 
     try {
       setLoading(true);
-      await tagService.createTag({
-        name: newTagName.trim(),
+      await categoryService.createCategory({
+        name: newCategoryName.trim(),
         color: selectedColor
       });
-      setNewTagName('');
-      setSelectedColor('#FF5252');
-      Alert.alert(i18n.t('common.success'), i18n.t('tags.successAddTag'));
-      loadTags();
+      setNewCategoryName('');
+      setSelectedColor('#448AFF');
+      Alert.alert('Éxito', 'Categoría agregada correctamente');
+      loadCategories();
     } catch (error) {
-      Alert.alert(i18n.t('common.error'), i18n.t('tags.errorAddTag'));
+      Alert.alert('Error', 'No se pudo agregar la categoría');
       console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEditTag = (tag: Tag) => {
-    setEditingTag(tag);
-    setNewTagName(tag.name);
-    setSelectedColor(tag.color || '#FF5252');
+  const handleEditCategory = (category: Category) => {
+    setEditingCategory(category);
+    setNewCategoryName(category.name);
+    setSelectedColor(category.color || '#448AFF');
   };
 
-  const handleUpdateTag = async () => {
-    if (!editingTag) return;
+  const handleUpdateCategory = async () => {
+    if (!editingCategory) return;
     
-    if (!newTagName.trim()) {
-      Alert.alert(i18n.t('common.error'), i18n.t('tags.errorEmptyTagName'));
+    if (!newCategoryName.trim()) {
+      Alert.alert('Error', 'El nombre de la categoría no puede estar vacío');
       return;
     }
 
-    if (newTagName.trim().length < 3) {
-      Alert.alert(i18n.t('common.error'), i18n.t('tags.errorTagNameLength'));
-      return;
-    }
-
-    // Verificar si ya existe otra etiqueta con el mismo nombre
-    const tagExists = tags.some(tag => 
-      tag.id !== editingTag.id && 
-      tag.name.toLowerCase() === newTagName.trim().toLowerCase()
+    // Verificar si ya existe otra categoría con el mismo nombre
+    const categoryExists = categories.some(category => 
+      category.id !== editingCategory.id && 
+      category.name.toLowerCase() === newCategoryName.trim().toLowerCase()
     );
 
-    if (tagExists) {
-      Alert.alert(i18n.t('common.error'), i18n.t('tags.errorTagNameExists'));
+    if (categoryExists) {
+      Alert.alert('Error', 'Ya existe una categoría con ese nombre');
       return;
     }
 
     try {
       setLoading(true);
-      await tagService.updateTag(editingTag.id!, {
-        name: newTagName.trim(),
+      await categoryService.updateCategory(editingCategory.id!, {
+        name: newCategoryName.trim(),
         color: selectedColor
       });
-      setEditingTag(null);
-      setNewTagName('');
-      setSelectedColor('#FF5252');
-      Alert.alert(i18n.t('common.success'), i18n.t('tags.successUpdateTag'));
-      loadTags();
+      setEditingCategory(null);
+      setNewCategoryName('');
+      setSelectedColor('#448AFF');
+      Alert.alert('Éxito', 'Categoría actualizada correctamente');
+      loadCategories();
     } catch (error) {
-      Alert.alert(i18n.t('common.error'), i18n.t('tags.errorUpdateTag'));
+      Alert.alert('Error', 'No se pudo actualizar la categoría');
       console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDeleteTag = (id: string) => {
+  const handleDeleteCategory = (id: string) => {
     Alert.alert(
-      i18n.t('tags.confirmDelete'),
-      i18n.t('tags.confirmDeleteMessage'),
+      'Confirmar eliminación',
+      '¿Estás seguro que deseas eliminar esta categoría?',
       [
-        { text: i18n.t('common.cancel'), style: 'cancel' },
+        { text: 'Cancelar', style: 'cancel' },
         { 
-          text: i18n.t('common.delete'), 
+          text: 'Eliminar', 
           style: 'destructive',
           onPress: async () => {
             try {
-              await tagService.deleteTag(id);
-              Alert.alert(i18n.t('common.success'), i18n.t('tags.successDeleteTag'));
-              loadTags();
+              await categoryService.deleteCategory(id);
+              Alert.alert('Éxito', 'Categoría eliminada correctamente');
+              loadCategories();
             } catch (error) {
-              Alert.alert(i18n.t('common.error'), i18n.t('tags.errorDeleteTag'));
+              Alert.alert('Error', 'No se pudo eliminar la categoría');
               console.error(error);
             }
           }
@@ -145,28 +135,28 @@ export default function TagsScreen() {
     );
   };
 
-  const handleChangeTagColor = (tag: Tag) => {
-    setEditingTag(tag);
-    setSelectedColor(tag.color || '#FF5252');
+  const handleChangeCategoryColor = (category: Category) => {
+    setEditingCategory(category);
+    setSelectedColor(category.color || '#448AFF');
     setShowColorPicker(true);
   };
 
   const handleSelectColor = async (color: string) => {
     setSelectedColor(color);
     
-    // Si estamos editando una etiqueta, actualizar su color inmediatamente
-    if (editingTag) {
+    // Si estamos editando una categoría, actualizar su color inmediatamente
+    if (editingCategory) {
       try {
         setLoading(true);
-        await tagService.updateTag(editingTag.id!, {
-          ...editingTag,
+        await categoryService.updateCategory(editingCategory.id!, {
+          ...editingCategory,
           color: color
         });
-        setEditingTag(null);
-        Alert.alert(i18n.t('common.success'), i18n.t('tags.successUpdateTag'));
-        loadTags();
+        setEditingCategory(null);
+        Alert.alert('Éxito', 'Categoría actualizada correctamente');
+        loadCategories();
       } catch (error) {
-        Alert.alert(i18n.t('common.error'), i18n.t('tags.errorUpdateTag'));
+        Alert.alert('Error', 'No se pudo actualizar la categoría');
         console.error(error);
       } finally {
         setLoading(false);
@@ -174,33 +164,33 @@ export default function TagsScreen() {
     }
   };
 
-  const renderTagItem = ({ item }: { item: Tag }) => (
-    <View style={[styles.tagItem, { backgroundColor: theme.surface }]}>
-      <View style={styles.tagInfo}>
+  const renderCategoryItem = ({ item }: { item: Category }) => (
+    <View style={[styles.categoryItem, { backgroundColor: theme.surface }]}>
+      <View style={styles.categoryInfo}>
         <View 
           style={[
-            styles.tagColorIndicator, 
-            { backgroundColor: item.color || '#FF5252' }
+            styles.categoryColorIndicator, 
+            { backgroundColor: item.color || '#448AFF' }
           ]} 
         />
-        <Text style={[styles.tagName, { color: theme.text }]}>{item.name}</Text>
+        <Text style={[styles.categoryName, { color: theme.text }]}>{item.name}</Text>
       </View>
-      <View style={styles.tagActions}>
+      <View style={styles.categoryActions}>
         <TouchableOpacity 
           style={styles.actionButton}
-          onPress={() => handleChangeTagColor(item)}
+          onPress={() => handleChangeCategoryColor(item)}
         >
-          <Ionicons name="color-palette" size={20} color={theme.primaryLight} />
+          <Ionicons name="color-palette" size={20} color={theme.primary} />
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.actionButton}
-          onPress={() => handleEditTag(item)}
+          onPress={() => handleEditCategory(item)}
         >
           <Ionicons name="create" size={20} color={theme.primary} />
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.actionButton}
-          onPress={() => handleDeleteTag(item.id!)}
+          onPress={() => handleDeleteCategory(item.id!)}
         >
           <Ionicons name="trash" size={20} color={theme.error} />
         </TouchableOpacity>
@@ -222,7 +212,7 @@ export default function TagsScreen() {
         backgroundColor: theme.surface,
         borderBottomColor: theme.border
       }]}>
-        <Text style={[styles.title, { color: theme.text }]}>{i18n.t('tags.title')}</Text>
+        <Text style={[styles.title, { color: theme.text }]}>Categorías</Text>
       </View>
 
       <View style={[styles.formContainer, { 
@@ -236,10 +226,10 @@ export default function TagsScreen() {
               borderColor: theme.border,
               color: theme.text
             }]}
-            placeholder={i18n.t('tags.newTagPlaceholder')}
+            placeholder="Nombre de la categoría"
             placeholderTextColor={theme.textLight}
-            value={newTagName}
-            onChangeText={setNewTagName}
+            value={newCategoryName}
+            onChangeText={setNewCategoryName}
           />
           <TouchableOpacity 
             style={[styles.colorButton, { 
@@ -253,21 +243,21 @@ export default function TagsScreen() {
         </View>
         <TouchableOpacity
           style={[styles.addButton, { backgroundColor: theme.primary }]}
-          onPress={editingTag ? handleUpdateTag : handleAddTag}
+          onPress={editingCategory ? handleUpdateCategory : handleAddCategory}
         >
           <Text style={[styles.addButtonText, { color: theme.surface }]}>
-            {editingTag ? i18n.t('tags.editTag') : i18n.t('tags.addTag')}
+            {editingCategory ? 'Actualizar Categoría' : 'Agregar Categoría'}
           </Text>
         </TouchableOpacity>
       </View>
 
       <FlatList
-        data={tags}
-        renderItem={renderTagItem}
+        data={categories}
+        renderItem={renderCategoryItem}
         keyExtractor={(item) => item.id || Math.random().toString()}
         contentContainerStyle={styles.listContainer}
         ListEmptyComponent={
-          <Text style={[styles.emptyText, { color: theme.textLight }]}>No hay etiquetas registradas.</Text>
+          <Text style={[styles.emptyText, { color: theme.textLight }]}>No hay categorías registradas.</Text>
         }
       />
 
@@ -340,7 +330,7 @@ const styles = StyleSheet.create({
   listContainer: {
     padding: 16,
   },
-  tagItem: {
+  categoryItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -353,23 +343,23 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 1.41,
   },
-  tagInfo: {
+  categoryInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
-  tagColorIndicator: {
+  categoryColorIndicator: {
     width: 24,
     height: 24,
     borderRadius: 12,
     marginRight: 12,
   },
-  tagName: {
+  categoryName: {
     fontSize: 16,
     flex: 1,
     flexWrap: 'wrap',
   },
-  tagActions: {
+  categoryActions: {
     flexDirection: 'row',
   },
   actionButton: {

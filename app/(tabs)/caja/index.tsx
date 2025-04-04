@@ -13,14 +13,16 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { cashService } from '../../../services/cashService';
-import Colors from '../../../constants/Colors';
 import { CashTransaction } from '../../../models/types';
-import { format } from 'date-fns';
+import { format, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Timestamp } from 'firebase/firestore';
 import i18n from '../../../translations';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export default function CashRegisterScreen() {
+  const { theme } = useTheme();
   const [transactions, setTransactions] = useState<CashTransaction[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [currentBalance, setCurrentBalance] = useState<number>(0);
@@ -29,51 +31,78 @@ export default function CashRegisterScreen() {
   const [amount, setAmount] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [submitting, setSubmitting] = useState<boolean>(false);
+  // Add date filter states
+  const [filterDate, setFilterDate] = useState<Date>(new Date());
+  const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
+  const [isCustomDate, setIsCustomDate] = useState<boolean>(false);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [filterDate, isCustomDate]);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const transactionsData = await cashService.getTodayTransactions();
+      
+      let transactionsData;
+      if (isCustomDate) {
+        // If custom date is selected, get transactions for that specific date
+        const startDate = startOfDay(filterDate);
+        const endDate = endOfDay(filterDate);
+        
+        transactionsData = await cashService.getTransactionsByDateRange(
+          new Timestamp(Math.floor(startDate.getTime() / 1000), 0),
+          new Timestamp(Math.floor(endDate.getTime() / 1000), 0)
+        );
+      } else {
+        // Otherwise get today's transactions
+        transactionsData = await cashService.getTodayTransactions();
+      }
+      
       setTransactions(transactionsData);
       
       const balance = await cashService.getCurrentBalance();
       setCurrentBalance(balance);
     } catch (error) {
-      Alert.alert('Error', 'No se pudieron cargar los datos de caja');
+      Alert.alert(i18n.t('common.error'), i18n.t('cash.errorLoadData'));
       console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleDateSelect = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      setFilterDate(selectedDate);
+      setIsCustomDate(true);
+    }
+  };
+
   const formatDate = (timestamp: any) => {
-    if (!timestamp) return 'Fecha desconocida';
+    if (!timestamp) return i18n.t('common.unknownDate');
     
     try {
       const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
       return format(date, 'dd/MM/yyyy HH:mm', { locale: es });
     } catch (error) {
       console.error('Error al formatear fecha:', error);
-      return 'Fecha inválida';
+      return i18n.t('common.invalidDate');
     }
   };
 
   const getTransactionIcon = (type: string) => {
     switch (type) {
       case 'sale':
-        return <Ionicons name="cart" size={24} color={Colors.success} />;
+        return <Ionicons name="cart" size={24} color={theme.success} />;
       case 'expense':
-        return <Ionicons name="wallet" size={24} color={Colors.error} />;
+        return <Ionicons name="wallet" size={24} color={theme.error} />;
       case 'deposit':
-        return <Ionicons name="arrow-down" size={24} color={Colors.primary} />;
+        return <Ionicons name="arrow-down" size={24} color={theme.primary} />;
       case 'withdrawal':
-        return <Ionicons name="arrow-up" size={24} color={Colors.warning} />;
+        return <Ionicons name="arrow-up" size={24} color={theme.warning} />;
       default:
-        return <Ionicons name="help-circle" size={24} color={Colors.textLight} />;
+        return <Ionicons name="help-circle" size={24} color={theme.textLight} />;
     }
   };
 
@@ -119,73 +148,199 @@ export default function CashRegisterScreen() {
     }
   };
 
-  const renderTransactionItem = ({ item }: { item: CashTransaction }) => (
-    <View style={styles.transactionItem}>
-      <View style={styles.transactionIcon}>
-        {getTransactionIcon(item.type)}
-      </View>
-      <View style={styles.transactionInfo}>
-        <Text style={styles.transactionDescription}>{item.description}</Text>
-        <Text style={styles.transactionDate}>{formatDate(item.date)}</Text>
-        <Text style={styles.transactionType}>
-          {getTransactionTypeText(item.type)}
-        </Text>
-      </View>
-      <Text
-        style={[
-          styles.transactionAmount,
-          (item.type === 'expense' || item.type === 'withdrawal')
-            ? styles.negativeAmount
-            : styles.positiveAmount
-        ]}
-      >
-        {(item.type === 'expense' || item.type === 'withdrawal') ? '-' : '+'}
-        ${item.amount.toFixed(2)}
+  // Add this function to your CashRegisterScreen component
+  const handleDeleteTransaction = (transaction: CashTransaction) => {
+  // Only allow deletion of expenses, deposits, and withdrawals (not sales)
+  if (transaction.type === 'sale') {
+    Alert.alert(
+      i18n.t('common.error'),
+      i18n.t('cash.cannotDeleteSale'),
+      [{ text: i18n.t('common.ok') }]
+    );
+    return;
+  }
+
+  Alert.alert(
+    i18n.t('common.confirm'),
+    i18n.t('cash.confirmDelete'),
+    [
+      {
+        text: i18n.t('common.cancel'),
+        style: 'cancel'
+      },
+      {
+        text: i18n.t('common.delete'),
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            setLoading(true);
+            await cashService.deleteTransaction(transaction.id!);
+            loadData();
+            Alert.alert(i18n.t('common.success'), i18n.t('cash.deleteSuccess'));
+          } catch (error) {
+            console.error('Error deleting transaction:', error);
+            Alert.alert(i18n.t('common.error'), i18n.t('cash.deleteError'));
+          } finally {
+            setLoading(false);
+          }
+        }
+      }
+    ]
+  );
+};
+
+// Modify the renderTransactionItem function to include a delete button
+const renderTransactionItem = ({ item }: { item: CashTransaction }) => (
+  <View style={[styles.transactionItem, { borderBottomColor: theme.background }]}>
+    <View style={[styles.transactionIcon, { backgroundColor: theme.background }]}>
+      {getTransactionIcon(item.type)}
+    </View>
+    <View style={styles.transactionInfo}>
+      <Text style={[styles.transactionDescription, { color: theme.text }]}>{item.description}</Text>
+      <Text style={[styles.transactionDate, { color: theme.textLight }]}>{formatDate(item.date)}</Text>
+      <Text style={[styles.transactionType, { color: theme.textLight }]}>
+        {getTransactionTypeText(item.type)}
       </Text>
     </View>
-  );
+    <Text
+      style={[
+        styles.transactionAmount,
+        (item.type === 'expense' || item.type === 'withdrawal')
+          ? [styles.negativeAmount, { color: theme.error }]
+          : [styles.positiveAmount, { color: theme.success }]
+      ]}
+    >
+      {(item.type === 'expense' || item.type === 'withdrawal') ? '-' : '+'}
+      ${item.amount.toFixed(2)}
+    </Text>
+    
+    {/* Add delete button for non-sale transactions */}
+    {item.type !== 'sale' && (
+      <TouchableOpacity
+        style={styles.deleteButton}
+        onPress={() => handleDeleteTransaction(item)}
+      >
+        <Ionicons name="trash-outline" size={20} color={theme.error} />
+      </TouchableOpacity>
+    )}
+  </View>
+);
+
+
+  const renderDateFilter = () => {
+    return (
+      <View style={styles.dateFilterContainer}>
+        <TouchableOpacity
+          style={[
+            styles.dateFilterButton,
+            { borderColor: theme.primary },
+            !isCustomDate && [styles.activeDateButton, { backgroundColor: theme.primary }]
+          ]}
+          onPress={() => {
+            setIsCustomDate(false);
+            setFilterDate(new Date());
+          }}
+        >
+          <Text
+            style={[
+              styles.dateFilterText,
+              { color: theme.primary },
+              !isCustomDate && [styles.activeDateText, { color: theme.surface }]
+            ]}
+          >
+            {i18n.t('common.today')}
+          </Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[
+            styles.dateFilterButton,
+            { borderColor: theme.primary },
+            isCustomDate && [styles.activeDateButton, { backgroundColor: theme.primary }]
+          ]}
+          onPress={() => setShowDatePicker(true)}
+        >
+          <Ionicons 
+            name="calendar-outline" 
+            size={16} 
+            color={isCustomDate ? theme.surface : theme.primary} 
+          />
+          <Text
+            style={[
+              styles.dateFilterText,
+              { color: theme.primary },
+              isCustomDate && [styles.activeDateText, { color: theme.surface }]
+            ]}
+          >
+            {isCustomDate 
+              ? format(filterDate, 'dd/MM/yyyy', { locale: es })
+              : i18n.t('common.selectDate')
+            }
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-        <Text style={styles.loadingText}>Cargando datos de caja...</Text>
+      <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+        <Text style={[styles.loadingText, { color: theme.textLight }]}>{i18n.t('cash.loading')}</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.balanceCard}>
-        <Text style={styles.balanceLabel}>Saldo Actual</Text>
-        <Text style={styles.balanceAmount}>${currentBalance.toFixed(2)}</Text>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.balanceCard, { backgroundColor: theme.surface }]}>
+        <Text style={[styles.balanceLabel, { color: theme.textLight }]}>{i18n.t('cash.currentBalance')}</Text>
+        <Text style={[styles.balanceAmount, { color: theme.text }]}>${currentBalance.toFixed(2)}</Text>
         <TouchableOpacity
           style={styles.reportButton}
           onPress={() => router.push('/caja/reporte')}
         >
-          <Text style={styles.reportButtonText}>Ver Reportes</Text>
-          <Ionicons name="chevron-forward" size={16} color={Colors.primary} />
+          <Text style={[styles.reportButtonText, { color: theme.primary }]}>{i18n.t('cash.reports')}</Text>
+          <Ionicons name="chevron-forward" size={16} color={theme.primary} />
         </TouchableOpacity>
       </View>
 
-      <View style={styles.transactionsContainer}>
+      <View style={[styles.transactionsContainer, { backgroundColor: theme.surface }]}>
         <View style={styles.transactionsHeader}>
-          <Text style={styles.transactionsTitle}>Transacciones de Hoy</Text>
+          <Text style={[styles.transactionsTitle, { color: theme.text }]}>
+            {isCustomDate 
+              ? i18n.t('cash.dateTransactions') 
+              : i18n.t('cash.todayTransactions')
+            }
+          </Text>
           <TouchableOpacity
             style={styles.refreshButton}
             onPress={loadData}
           >
-            <Ionicons name="refresh" size={20} color={Colors.primary} />
+            <Ionicons name="refresh" size={20} color={theme.primary} />
           </TouchableOpacity>
         </View>
+
+        {renderDateFilter()}
+        
+        {showDatePicker && (
+          <DateTimePicker
+            value={filterDate}
+            mode="date"
+            onChange={handleDateSelect}
+          />
+        )}
 
         <FlatList
           data={transactions}
           keyExtractor={(item) => item.id!}
           renderItem={renderTransactionItem}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>
-              No hay transacciones registradas hoy.
+            <Text style={[styles.emptyText, { color: theme.textLight }]}>
+              {isCustomDate 
+                ? i18n.t('cash.emptyDateTransactions') 
+                : i18n.t('cash.emptyTransactions')
+              }
             </Text>
           }
         />
@@ -193,36 +348,36 @@ export default function CashRegisterScreen() {
 
       <View style={styles.actionButtonsContainer}>
         <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: Colors.primary }]}
+          style={[styles.actionButton, { backgroundColor: theme.primary }]}
           onPress={() => {
             setTransactionType('deposit');
             setModalVisible(true);
           }}
         >
-          <Ionicons name="arrow-down" size={24} color={Colors.surface} />
-          <Text style={styles.actionButtonText}>Depósito</Text>
+          <Ionicons name="arrow-down" size={24} color={theme.surface} />
+          <Text style={[styles.actionButtonText, { color: theme.surface }]}>{i18n.t('cash.deposit')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: Colors.warning }]}
+          style={[styles.actionButton, { backgroundColor: theme.warning }]}
           onPress={() => {
             setTransactionType('withdrawal');
             setModalVisible(true);
           }}
         >
-          <Ionicons name="arrow-up" size={24} color={Colors.surface} />
-          <Text style={styles.actionButtonText}>Retiro</Text>
+          <Ionicons name="arrow-up" size={24} color={theme.surface} />
+          <Text style={[styles.actionButtonText, { color: theme.surface }]}>{i18n.t('cash.withdrawal')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: Colors.error }]}
+          style={[styles.actionButton, { backgroundColor: theme.error }]}
           onPress={() => {
             setTransactionType('expense');
             setModalVisible(true);
           }}
         >
-          <Ionicons name="wallet" size={24} color={Colors.surface} />
-          <Text style={styles.actionButtonText}>Gasto</Text>
+          <Ionicons name="wallet" size={24} color={theme.surface} />
+          <Text style={[styles.actionButtonText, { color: theme.surface }]}>{i18n.t('cash.expense')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -233,53 +388,64 @@ export default function CashRegisterScreen() {
         onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {transactionType === 'deposit' ? 'Nuevo Depósito' : 
-                 transactionType === 'withdrawal' ? 'Nuevo Retiro' : 'Nuevo Gasto'}
+              <Text style={[styles.modalTitle, { color: theme.text }]}>
+                {transactionType === 'deposit' ? i18n.t('cash.newDeposit') : 
+                 transactionType === 'withdrawal' ? i18n.t('cash.newWithdrawal') : i18n.t('cash.newExpense')}
               </Text>
               <TouchableOpacity
                 onPress={() => setModalVisible(false)}
                 disabled={submitting}
               >
-                <Ionicons name="close" size={24} color={Colors.text} />
+                <Ionicons name="close" size={24} color={theme.text} />
               </TouchableOpacity>
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Monto</Text>
+              <Text style={[styles.label, { color: theme.text }]}>{i18n.t('cash.amount')}</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  backgroundColor: theme.background, 
+                  borderColor: theme.primaryLight,
+                  color: theme.text
+                }]}
                 value={amount}
                 onChangeText={setAmount}
                 keyboardType="numeric"
                 placeholder="0.00"
+                placeholderTextColor={theme.textLight}
               />
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Descripción</Text>
+              <Text style={[styles.label, { color: theme.text }]}>{i18n.t('cash.description')}</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  backgroundColor: theme.background, 
+                  borderColor: theme.primaryLight,
+                  color: theme.text
+                }]}
                 value={description}
                 onChangeText={setDescription}
-                placeholder="Ingresa una descripción..."
+                placeholder={i18n.t('cash.descriptionPlaceholder')}
+                placeholderTextColor={theme.textLight}
               />
             </View>
 
             <TouchableOpacity
               style={[
                 styles.submitButton,
+                { backgroundColor: theme.primary },
                 submitting && styles.disabledButton
               ]}
               onPress={handleAddTransaction}
               disabled={submitting}
             >
               {submitting ? (
-                <ActivityIndicator size="small" color={Colors.surface} />
+                <ActivityIndicator size="small" color={theme.surface} />
               ) : (
-                <Text style={styles.submitButtonText}>Guardar</Text>
+                <Text style={[styles.submitButtonText, { color: theme.surface }]}>{i18n.t('cash.save')}</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -292,22 +458,18 @@ export default function CashRegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
     padding: 16,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.background,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: Colors.textLight,
   },
   balanceCard: {
-    backgroundColor: Colors.surface,
     borderRadius: 12,
     padding: 20,
     marginBottom: 16,
@@ -319,13 +481,11 @@ const styles = StyleSheet.create({
   },
   balanceLabel: {
     fontSize: 16,
-    color: Colors.textLight,
     marginBottom: 8,
   },
   balanceAmount: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: Colors.text,
     marginBottom: 16,
   },
   reportButton: {
@@ -334,12 +494,10 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
   reportButtonText: {
-    color: Colors.primary,
     fontWeight: '500',
   },
   transactionsContainer: {
     flex: 1,
-    backgroundColor: Colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -358,7 +516,6 @@ const styles = StyleSheet.create({
   transactionsTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: Colors.text,
   },
   refreshButton: {
     padding: 8,
@@ -366,7 +523,6 @@ const styles = StyleSheet.create({
   emptyText: {
     textAlign: 'center',
     padding: 20,
-    color: Colors.textLight,
     fontStyle: 'italic',
   },
   transactionItem: {
@@ -374,13 +530,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.background,
   },
   transactionIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.background,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -391,27 +545,24 @@ const styles = StyleSheet.create({
   transactionDescription: {
     fontSize: 16,
     fontWeight: '500',
-    color: Colors.text,
     marginBottom: 4,
   },
   transactionDate: {
     fontSize: 12,
-    color: Colors.textLight,
     marginBottom: 2,
   },
   transactionType: {
     fontSize: 12,
-    color: Colors.textLight,
   },
   transactionAmount: {
     fontSize: 16,
     fontWeight: 'bold',
   },
   positiveAmount: {
-    color: Colors.success,
+    // color applied dynamically
   },
   negativeAmount: {
-    color: Colors.error,
+    // color applied dynamically
   },
   actionButtonsContainer: {
     flexDirection: 'row',
@@ -432,7 +583,6 @@ const styles = StyleSheet.create({
     shadowRadius: 1.41,
   },
   actionButtonText: {
-    color: Colors.surface,
     fontWeight: 'bold',
     marginTop: 4,
   },
@@ -443,7 +593,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
-    backgroundColor: Colors.surface,
     borderRadius: 12,
     padding: 20,
     width: '90%',
@@ -462,7 +611,6 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: Colors.text,
   },
   formGroup: {
     marginBottom: 16,
@@ -470,19 +618,15 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     marginBottom: 8,
-    color: Colors.text,
     fontWeight: '500',
   },
   input: {
-    backgroundColor: Colors.background,
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: Colors.primaryLight,
   },
   submitButton: {
-    backgroundColor: Colors.primary,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 20,
@@ -493,8 +637,36 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   submitButtonText: {
-    color: Colors.surface,
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  dateFilterContainer: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    justifyContent: 'space-between',
+  },
+  dateFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    flex: 0.48,
+  },
+  activeDateButton: {
+    // backgroundColor applied dynamically
+  },
+  dateFilterText: {
+    fontWeight: '500',
+    marginLeft: 4,
+  },
+  activeDateText: {
+    // color applied dynamically
+  },
+  deleteButton: {
+    padding: 8,
+    marginLeft: 8,
   },
 });

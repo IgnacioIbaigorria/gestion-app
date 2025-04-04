@@ -1,11 +1,15 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import Colors from '@/constants/Colors';
 import { LanguageProvider } from '../context/LanguageContext';
+import { TouchableOpacity, SafeAreaView, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import i18n from '@/translations';
+import { useLanguage } from '../context/LanguageContext';
+import { ThemeProvider } from '../contexts/ThemeContext';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -21,7 +25,6 @@ export default function RootLayout() {
     ...FontAwesome.font,
   });
 
-  // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
     if (error) throw error;
   }, [error]);
@@ -36,12 +39,20 @@ export default function RootLayout() {
     return null;
   }
 
-  return <RootLayoutNav />;
+  return (
+    <ThemeProvider>
+      <LanguageProvider>
+        <RootLayoutNav />
+      </LanguageProvider>
+    </ThemeProvider>
+  );
 }
 
 function RootLayoutNav() {
+  const { locale } = useLanguage();
+
   return (
-    <LanguageProvider>
+    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.primary }}>
       <Stack
         screenOptions={{
           headerStyle: {
@@ -51,7 +62,11 @@ function RootLayoutNav() {
           headerTitleStyle: {
             fontWeight: 'bold',
           },
-          headerBackVisible: true,
+          headerTitleAlign: 'center',
+          statusBarStyle: 'inverted',
+          statusBarHidden: false,
+          statusBarAnimation: 'slide',
+          statusBarBackgroundColor: Colors.primary,
         }}
       >
         <Stack.Screen
@@ -60,7 +75,15 @@ function RootLayoutNav() {
             headerShown: false,
           }}
         />
+        <Stack.Screen
+          name="settings/language"
+          options={{
+            presentation: 'modal',
+            headerTitle: i18n.t('settings.language'),
+          }}
+        />
       </Stack>
-    </LanguageProvider>
+    </SafeAreaView>
   );
 }
+

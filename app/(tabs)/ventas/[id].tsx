@@ -3,12 +3,14 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIn
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { salesService } from '../../../services/salesService';
-import Colors from '../../../constants/Colors';
 import { Sale } from '../../../models/types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import i18n from '../../../translations';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export default function SaleDetailScreen() {
+  const { theme } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [sale, setSale] = useState<Sale | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -25,7 +27,7 @@ export default function SaleDetailScreen() {
       const saleData = await salesService.getSaleById(saleId);
       setSale(saleData);
     } catch (error) {
-      Alert.alert('Error', 'No se pudo cargar la venta');
+      Alert.alert(i18n.t('common.error'), i18n.t('sales.detail.errorLoading'));
       console.error(error);
       router.back();
     } finally {
@@ -34,95 +36,111 @@ export default function SaleDetailScreen() {
   };
 
   const formatDate = (timestamp: any) => {
-    if (!timestamp) return 'Fecha desconocida';
+    if (!timestamp) return i18n.t('sales.detail.unknownDate');
     
     try {
       const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
       return format(date, 'dd/MM/yyyy HH:mm', { locale: es });
     } catch (error) {
       console.error('Error al formatear fecha:', error);
-      return 'Fecha inválida';
+      return i18n.t('sales.detail.invalidDate');
     }
   };
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-        <Text style={styles.loadingText}>Cargando venta...</Text>
+      <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+        <Text style={[styles.loadingText, { color: theme.textLight }]}>{i18n.t('sales.detail.loading')}</Text>
       </View>
     );
   }
 
   if (!sale) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>No se encontró la venta</Text>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>Volver</Text>
+      <View style={[styles.errorContainer, { backgroundColor: theme.background }]}>
+        <Text style={[styles.errorText, { color: theme.error }]}>{i18n.t('sales.detail.notFound')}</Text>
+        <TouchableOpacity 
+          style={[styles.backButton, { backgroundColor: theme.primary }]} 
+          onPress={() => router.back()}
+        >
+          <Text style={[styles.backButtonText, { color: theme.surface }]}>{i18n.t('sales.detail.back')}</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.card}>
+    <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.card, { backgroundColor: theme.surface }]}>
         <View style={styles.header}>
-          <Text style={styles.title}>Detalle de Venta</Text>
-          <Text style={styles.date}>{formatDate(sale.date)}</Text>
+          <Text style={[styles.title, { color: theme.text }]}>{i18n.t('sales.detail.title')}</Text>
+          <Text style={[styles.date, { color: theme.textLight }]}>{formatDate(sale.date)}</Text>
         </View>
         
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Productos</Text>
+          <Text style={[styles.sectionTitle, { 
+            color: theme.primary, 
+            borderBottomColor: theme.primaryLight 
+          }]}>{i18n.t('sales.detail.products')}</Text>
           {sale.items.map((item, index) => (
-            <View key={index} style={styles.itemRow}>
+            <View key={index} style={[styles.itemRow, { borderBottomColor: theme.background }]}>
               <View style={styles.itemInfo}>
-                <Text style={styles.itemName}>{item.productName}</Text>
-                <Text style={styles.itemDetails}>
+                <Text style={[styles.itemName, { color: theme.text }]}>{item.productName}</Text>
+                <Text style={[styles.itemDetails, { color: theme.textLight }]}>
                   {item.quantity} x ${item.unitPrice.toFixed(2)}
                 </Text>
               </View>
-              <Text style={styles.itemSubtotal}>${item.subtotal.toFixed(2)}</Text>
+              <Text style={[styles.itemSubtotal, { color: theme.primary }]}>
+                ${item.subtotal.toFixed(2)}
+              </Text>
             </View>
           ))}
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Resumen</Text>
+          <Text style={[styles.sectionTitle, { 
+            color: theme.primary, 
+            borderBottomColor: theme.primaryLight 
+          }]}>{i18n.t('sales.detail.summary')}</Text>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Total de productos:</Text>
-            <Text style={styles.summaryValue}>{sale.items.length}</Text>
+            <Text style={[styles.summaryLabel, { color: theme.text }]}>{i18n.t('sales.detail.totalProducts')}:</Text>
+            <Text style={[styles.summaryValue, { color: theme.text }]}>{sale.items.length}</Text>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Cantidad de ítems:</Text>
-            <Text style={styles.summaryValue}>
+            <Text style={[styles.summaryLabel, { color: theme.text }]}>{i18n.t('sales.detail.totalItems')}:</Text>
+            <Text style={[styles.summaryValue, { color: theme.text }]}>
               {sale.items.reduce((sum, item) => sum + item.quantity, 0)}
             </Text>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Método de pago:</Text>
-            <Text style={styles.summaryValue}>{sale.paymentMethod}</Text>
+            <Text style={[styles.summaryLabel, { color: theme.text }]}>{i18n.t('sales.detail.paymentMethod')}:</Text>
+            <Text style={[styles.summaryValue, { color: theme.text }]}>{sale.paymentMethod}</Text>
           </View>
-          <View style={[styles.summaryRow, styles.totalRow]}>
-            <Text style={styles.totalLabel}>Total:</Text>
-            <Text style={styles.totalValue}>${sale.totalAmount.toFixed(2)}</Text>
+          <View style={[styles.summaryRow, styles.totalRow, { borderTopColor: theme.primaryLight }]}>
+            <Text style={[styles.totalLabel, { color: theme.text }]}>{i18n.t('sales.detail.total')}:</Text>
+            <Text style={[styles.totalValue, { color: theme.primary }]}>
+              ${sale.totalAmount.toFixed(2)}
+            </Text>
           </View>
         </View>
 
         {sale.notes ? (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Notas</Text>
-            <Text style={styles.notes}>{sale.notes}</Text>
+            <Text style={[styles.sectionTitle, { 
+              color: theme.primary, 
+              borderBottomColor: theme.primaryLight 
+            }]}>{i18n.t('sales.detail.notes')}</Text>
+            <Text style={[styles.notes, { color: theme.text }]}>{sale.notes}</Text>
           </View>
         ) : null}
 
         <TouchableOpacity
-          style={styles.backButton}
+          style={[styles.backButton, { backgroundColor: theme.primary }]}
           onPress={() => router.back()}
         >
-          <Ionicons name="arrow-back" size={20} color={Colors.surface} />
-          <Text style={styles.backButtonText}>Volver</Text>
+          <Ionicons name="arrow-back" size={20} color={theme.surface} />
+          <Text style={[styles.backButtonText, { color: theme.surface }]}>{i18n.t('sales.detail.back')}</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -132,34 +150,28 @@ export default function SaleDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
     padding: 16,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.background,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: Colors.textLight,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.background,
     padding: 20,
   },
   errorText: {
     fontSize: 18,
-    color: Colors.error,
     marginBottom: 20,
   },
   card: {
-    backgroundColor: Colors.surface,
     borderRadius: 12,
     padding: 20,
     marginBottom: 20,
@@ -175,12 +187,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: Colors.text,
     marginBottom: 8,
   },
   date: {
     fontSize: 16,
-    color: Colors.textLight,
   },
   section: {
     marginBottom: 20,
@@ -188,10 +198,8 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: Colors.primary,
     marginBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.primaryLight,
     paddingBottom: 5,
   },
   itemRow: {
@@ -200,7 +208,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.background,
   },
   itemInfo: {
     flex: 1,
@@ -208,16 +215,13 @@ const styles = StyleSheet.create({
   itemName: {
     fontSize: 16,
     fontWeight: '500',
-    color: Colors.text,
   },
   itemDetails: {
     fontSize: 14,
-    color: Colors.textLight,
   },
   itemSubtotal: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: Colors.primary,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -227,36 +231,29 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 16,
-    color: Colors.text,
   },
   summaryValue: {
     fontSize: 16,
     fontWeight: '500',
-    color: Colors.text,
   },
   totalRow: {
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: Colors.primaryLight,
   },
   totalLabel: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: Colors.text,
   },
   totalValue: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: Colors.primary,
   },
   notes: {
     fontSize: 16,
-    color: Colors.text,
     lineHeight: 22,
   },
   backButton: {
-    backgroundColor: Colors.primary,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 20,
@@ -266,7 +263,6 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   backButtonText: {
-    color: Colors.surface,
     fontSize: 16,
     fontWeight: 'bold',
     marginLeft: 8,

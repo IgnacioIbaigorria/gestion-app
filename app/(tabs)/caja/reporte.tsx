@@ -12,18 +12,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { cashService } from '../../../services/cashService';
 import { salesService } from '../../../services/salesService';
-import Colors from '../../../constants/Colors';
 import { format, subDays, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Timestamp } from 'firebase/firestore';
 import i18n from '@/translations';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export default function CashReportScreen() {
+  const { theme } = useTheme();
   const [loading, setLoading] = useState<boolean>(true);
-  const [period, setPeriod] = useState<'today' | 'week' | 'month'>('today');
+  const [period, setPeriod] = useState<'today' | 'week' | 'month' | 'custom'>('today');
   const [totalSales, setTotalSales] = useState<number>(0);
   const [totalExpenses, setTotalExpenses] = useState<number>(0);
   const [totalDeposits, setTotalDeposits] = useState<number>(0);
@@ -31,42 +32,50 @@ export default function CashReportScreen() {
   const [netIncome, setNetIncome] = useState<number>(0);
   const [currentBalance, setCurrentBalance] = useState<number>(0);
   const [salesCount, setSalesCount] = useState<number>(0);
+  // Add custom date range states
+  const [startDate, setStartDate] = useState(new Date());
+  const [endDate, setEndDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [datePickerType, setDatePickerType] = useState<'start' | 'end'>('start');
 
   useEffect(() => {
     loadReportData();
-  }, [period]);
+  }, [period, startDate, endDate]);
 
   const loadReportData = async () => {
     try {
       setLoading(true);
       
-      let startDate;
-      const endDate = endOfDay(new Date());
+      let startDateObj;
+      const endDateObj = endOfDay(period === 'custom' ? endDate : new Date());
       
       switch (period) {
         case 'today':
-          startDate = startOfDay(new Date());
+          startDateObj = startOfDay(new Date());
           break;
         case 'week':
-          startDate = startOfDay(subDays(new Date(), 7));
+          startDateObj = startOfDay(subDays(new Date(), 7));
           break;
         case 'month':
-          startDate = startOfDay(subDays(new Date(), 30));
+          startDateObj = startOfDay(subDays(new Date(), 30));
+          break;
+        case 'custom':
+          startDateObj = startOfDay(startDate);
           break;
         default:
-          startDate = startOfDay(new Date());
+          startDateObj = startOfDay(new Date());
       }
     
       // Obtener datos de transacciones
       const transactions = await cashService.getTransactionsByDateRange(
-        new Timestamp(Math.floor(startDate.getTime() / 1000), 0),
-        new Timestamp(Math.floor(endDate.getTime() / 1000), 0)
+        new Timestamp(Math.floor(startDateObj.getTime() / 1000), 0),
+        new Timestamp(Math.floor(endDateObj.getTime() / 1000), 0)
       );
       
       // Obtener datos de ventas
       const sales = await salesService.getSalesByDateRange(
-        new Timestamp(Math.floor(startDate.getTime() / 1000), 0),
-        new Timestamp(Math.floor(endDate.getTime() / 1000), 0)
+        new Timestamp(Math.floor(startDateObj.getTime() / 1000), 0),
+        new Timestamp(Math.floor(endDateObj.getTime() / 1000), 0)
       );
       
       // Calcular totales
@@ -113,6 +122,29 @@ export default function CashReportScreen() {
       setLoading(false);
     }
   };
+
+  // Add date picker handler
+  const handleDateSelect = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      if (datePickerType === 'start') {
+        // Validar que la fecha de inicio no sea posterior a la fecha de fin
+        if (selectedDate > endDate) {
+          // Si la fecha seleccionada es posterior a la fecha de fin, ajustar la fecha de fin
+          setEndDate(selectedDate);
+        }
+        setStartDate(selectedDate);
+      } else {
+        // Validar que la fecha de fin no sea anterior a la fecha de inicio
+        if (selectedDate < startDate) {
+          // Si la fecha seleccionada es anterior a la fecha de inicio, ajustar
+          setStartDate(selectedDate);
+        }
+        setEndDate(selectedDate);
+      }
+    }
+  };
+
   const handleExportReport = async () => {
     try {
       const dateRange = getDateRangeText();
@@ -223,197 +255,253 @@ export default function CashReportScreen() {
   };
 
   const getDateRangeText = () => {
-    const endDate = new Date();
-    let startDate;
+    const endDateObj = new Date();
+    let startDateObj;
     
     switch (period) {
       case 'today':
-        return `Hoy, ${formatDate(endDate)}`;
+        return `${i18n.t('common.today')}, ${formatDate(endDateObj)}`;
       case 'week':
-        startDate = subDays(endDate, 7);
-        return `${formatDate(startDate)} - ${formatDate(endDate)}`;
+        startDateObj = subDays(endDateObj, 7);
+        return `${formatDate(startDateObj)} - ${formatDate(endDateObj)}`;
       case 'month':
-        startDate = subDays(endDate, 30);
+        startDateObj = subDays(endDateObj, 30);
+        return `${formatDate(startDateObj)} - ${formatDate(endDateObj)}`;
+      case 'custom':
         return `${formatDate(startDate)} - ${formatDate(endDate)}`;
       default:
-        return 'Período desconocido';
+        return i18n.t('common.unknownPeriod');
     }
+  };
+
+  // Add custom date range selector component
+  const renderCustomDateSelector = () => {
+    if (period !== 'custom') return null;
+    
+    return (
+      <View style={styles.customDateContainer}>
+        <TouchableOpacity
+          style={[styles.dateButton, { 
+            backgroundColor: theme.surface, 
+            borderColor: theme.primaryLight 
+          }]}
+          onPress={() => {
+            setDatePickerType('start');
+            setShowDatePicker(true);
+          }}
+        >
+          <Ionicons name="calendar-outline" size={18} color={theme.primary} />
+          <Text style={[styles.dateButtonText, { color: theme.text }]}>
+            {i18n.t('statistics.from')}: {formatDate(startDate)}
+          </Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[styles.dateButton, { 
+            backgroundColor: theme.surface, 
+            borderColor: theme.primaryLight 
+          }]}
+          onPress={() => {
+            setDatePickerType('end');
+            setShowDatePicker(true);
+          }}
+        >
+          <Ionicons name="calendar-outline" size={18} color={theme.primary} />
+          <Text style={[styles.dateButtonText, { color: theme.text }]}>
+            {i18n.t('statistics.to')}: {formatDate(endDate)}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
   };
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-        <Text style={styles.loadingText}>Cargando reporte...</Text>
+      <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+        <Text style={[styles.loadingText, { color: theme.textLight }]}>{i18n.t('cash.loading')}</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Reporte de Caja</Text>
-      </View>
-
-      <View style={styles.periodSelector}>
+    <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.periodSelector, { backgroundColor: theme.surface }]}>
         <TouchableOpacity
           style={[
             styles.periodButton,
-            period === 'today' && styles.activePeriodButton
+            period === 'today' && [styles.activePeriodButton, { backgroundColor: theme.primary }]
           ]}
           onPress={() => setPeriod('today')}
         >
           <Text
             style={[
               styles.periodButtonText,
-              period === 'today' && styles.activePeriodButtonText
+              { color: theme.text },
+              period === 'today' && [styles.activePeriodButtonText, { color: theme.surface }]
             ]}
           >
-            Hoy
+            {i18n.t('common.today')}
           </Text>
         </TouchableOpacity>
         
         <TouchableOpacity
           style={[
             styles.periodButton,
-            period === 'week' && styles.activePeriodButton
+            period === 'week' && [styles.activePeriodButton, { backgroundColor: theme.primary }]
           ]}
           onPress={() => setPeriod('week')}
         >
           <Text
             style={[
               styles.periodButtonText,
-              period === 'week' && styles.activePeriodButtonText
+              { color: theme.text },
+              period === 'week' && [styles.activePeriodButtonText, { color: theme.surface }]
             ]}
           >
-            Semana
+            {i18n.t('common.week')}
           </Text>
         </TouchableOpacity>
-        
+                
         <TouchableOpacity
           style={[
             styles.periodButton,
-            period === 'month' && styles.activePeriodButton
+            period === 'custom' && [styles.activePeriodButton, { backgroundColor: theme.primary }]
           ]}
-          onPress={() => setPeriod('month')}
+          onPress={() => setPeriod('custom')}
         >
           <Text
             style={[
               styles.periodButtonText,
-              period === 'month' && styles.activePeriodButtonText
+              { color: theme.text },
+              period === 'custom' && [styles.activePeriodButtonText, { color: theme.surface }]
             ]}
           >
-            Mes
+            {i18n.t('common.custom')}
           </Text>
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.dateRangeText}>{getDateRangeText()}</Text>
+      {renderCustomDateSelector()}
+      {showDatePicker && (
+        <DateTimePicker
+          value={datePickerType === 'start' ? startDate : endDate}
+          mode="date"
+          onChange={handleDateSelect}
+        />
+      )}
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Resumen</Text>
+      <Text style={[styles.dateRangeText, { color: theme.textLight }]}>{getDateRangeText()}</Text>
+
+      <View style={[styles.card, { backgroundColor: theme.surface }]}>
+        <Text style={[styles.cardTitle, { 
+          color: theme.text,
+          borderBottomColor: theme.background 
+        }]}>{i18n.t('common.resume')}</Text>
         
         <View style={styles.summaryItem}>
-          <View style={styles.summaryIconContainer}>
-            <Ionicons name="cash-outline" size={24} color={Colors.primary} />
+          <View style={[styles.summaryIconContainer, { backgroundColor: theme.primaryLight }]}>
+            <Ionicons name="cash-outline" size={24} color={theme.primary} />
           </View>
           <View style={styles.summaryInfo}>
-            <Text style={styles.summaryLabel}>Saldo Actual</Text>
-            <Text style={styles.summaryValue}>${currentBalance.toFixed(2)}</Text>
+            <Text style={[styles.summaryLabel, { color: theme.textLight }]}>{i18n.t('cash.currentBalance')}</Text>
+            <Text style={[styles.summaryValue, { color: theme.text }]}>${currentBalance.toFixed(2)}</Text>
           </View>
         </View>
         
         <View style={styles.summaryItem}>
-          <View style={[styles.summaryIconContainer, { backgroundColor: Colors.successLight }]}>
-            <Ionicons name="trending-up" size={24} color={Colors.success} />
+          <View style={[styles.summaryIconContainer, { backgroundColor: theme.successLight }]}>
+            <Ionicons name="trending-up" size={24} color={theme.success} />
           </View>
           <View style={styles.summaryInfo}>
-            <Text style={styles.summaryLabel}>Ingresos Netos</Text>
-            <Text style={[styles.summaryValue, { color: netIncome >= 0 ? Colors.success : Colors.error }]}>
+            <Text style={[styles.summaryLabel, { color: theme.textLight }]}>{i18n.t('cash.netIncome')}</Text>
+            <Text style={[styles.summaryValue, { 
+              color: netIncome >= 0 ? theme.success : theme.error 
+            }]}>
               ${netIncome.toFixed(2)}
             </Text>
           </View>
         </View>
         
         <View style={styles.summaryItem}>
-          <View style={[styles.summaryIconContainer, { backgroundColor: Colors.primaryLight }]}>
-            <Ionicons name="cart-outline" size={24} color={Colors.primary} />
+          <View style={[styles.summaryIconContainer, { backgroundColor: theme.primaryLight }]}>
+            <Ionicons name="cart-outline" size={24} color={theme.primary} />
           </View>
           <View style={styles.summaryInfo}>
-            <Text style={styles.summaryLabel}>Ventas Realizadas</Text>
-            <Text style={styles.summaryValue}>{salesCount}</Text>
+            <Text style={[styles.summaryLabel, { color: theme.textLight }]}>{i18n.t('sales.title')}</Text>
+            <Text style={[styles.summaryValue, { color: theme.text }]}>{salesCount}</Text>
           </View>
         </View>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Detalles</Text>
+      <View style={[styles.card, { backgroundColor: theme.surface }]}>
+        <Text style={[styles.cardTitle, { 
+          color: theme.text,
+          borderBottomColor: theme.background 
+        }]}>{i18n.t('statistics.valuesSummary')}</Text>
         
-        <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>Total Ventas</Text>
-          <Text style={styles.detailValue}>${totalSales.toFixed(2)}</Text>
+        <View style={[styles.detailItem, { borderBottomColor: theme.background }]}>
+          <Text style={[styles.detailLabel, { color: theme.text }]}>{i18n.t('statistics.totalSale')}</Text>
+          <Text style={[styles.detailValue, { color: theme.text }]}>${totalSales.toFixed(2)}</Text>
         </View>
         
-        <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>Total Gastos</Text>
-          <Text style={styles.detailValue}>-${totalExpenses.toFixed(2)}</Text>
+        <View style={[styles.detailItem, { borderBottomColor: theme.background }]}>
+          <Text style={[styles.detailLabel, { color: theme.text }]}>{i18n.t('statistics.totalExpenses')}</Text>
+          <Text style={[styles.detailValue, { color: theme.text }]}>-${totalExpenses.toFixed(2)}</Text>
         </View>
         
-        <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>Total Depósitos</Text>
-          <Text style={styles.detailValue}>${totalDeposits.toFixed(2)}</Text>
+        <View style={[styles.detailItem, { borderBottomColor: theme.background }]}>
+          <Text style={[styles.detailLabel, { color: theme.text }]}>{i18n.t('cash.deposit')}</Text>
+          <Text style={[styles.detailValue, { color: theme.text }]}>${totalDeposits.toFixed(2)}</Text>
         </View>
         
-        <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>Total Retiros</Text>
-          <Text style={styles.detailValue}>-${totalWithdrawals.toFixed(2)}</Text>
+        <View style={[styles.detailItem, { borderBottomColor: theme.background }]}>
+          <Text style={[styles.detailLabel, { color: theme.text }]}>{i18n.t('cash.withdrawal')}</Text>
+          <Text style={[styles.detailValue, { color: theme.text }]}>-${totalWithdrawals.toFixed(2)}</Text>
         </View>
         
-        <View style={[styles.detailItem, styles.totalItem]}>
-          <Text style={styles.totalLabel}>Balance Neto</Text>
-          <Text style={[styles.totalValue, { color: netIncome >= 0 ? Colors.success : Colors.error }]}>
+        <View style={[styles.detailItem, styles.totalItem, { 
+          borderTopColor: theme.primaryLight 
+        }]}>
+          <Text style={[styles.totalLabel, { color: theme.text }]}>{i18n.t('statistics.netBalance')}</Text>
+          <Text style={[styles.totalValue, { 
+            color: netIncome >= 0 ? theme.success : theme.error 
+          }]}>
             ${netIncome.toFixed(2)}
           </Text>
         </View>
       </View>
 
       <TouchableOpacity
-        style={styles.exportButton}
+        style={[styles.exportButton, { backgroundColor: theme.primary }]}
         onPress={handleExportReport}
-        >
-        <Ionicons name="download-outline" size={20} color={Colors.surface} />
-        <Text style={styles.exportButtonText}>Exportar Reporte</Text>
+      >
+        <Ionicons name="download-outline" size={20} color={theme.surface} />
+        <Text style={[styles.exportButtonText, { color: theme.surface }]}>{i18n.t('cash.exportReport')}</Text>
       </TouchableOpacity>
     </ScrollView>
   );
 }
 
+// Add new styles for custom date selector
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
     padding: 16,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.background,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: Colors.textLight,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 20,
   },
   backButton: {
@@ -423,14 +511,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: Colors.text,
   },
   periodSelector: {
     flexDirection: 'row',
-    backgroundColor: Colors.surface,
     borderRadius: 8,
     marginBottom: 16,
     elevation: 2,
+    padding: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
@@ -439,28 +526,27 @@ const styles = StyleSheet.create({
   },
   periodButton: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 8,
     alignItems: 'center',
+    borderRadius: 6,
   },
   activePeriodButton: {
-    backgroundColor: Colors.primary,
+    // backgroundColor applied dynamically
   },
   periodButtonText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: Colors.text,
+    fontSize: 14,
+    // color applied dynamically
   },
   activePeriodButtonText: {
-    color: Colors.surface,
+    // color applied dynamically
+    fontWeight: 'bold',
   },
   dateRangeText: {
     fontSize: 14,
-    color: Colors.textLight,
     marginBottom: 16,
     textAlign: 'center',
   },
   card: {
-    backgroundColor: Colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -473,10 +559,8 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: Colors.text,
     marginBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.background,
     paddingBottom: 8,
   },
   summaryItem: {
@@ -488,7 +572,6 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: Colors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -498,13 +581,11 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 14,
-    color: Colors.textLight,
     marginBottom: 4,
   },
   summaryValue: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: Colors.text,
   },
   detailItem: {
     flexDirection: 'row',
@@ -512,35 +593,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.background,
   },
   detailLabel: {
     fontSize: 16,
-    color: Colors.text,
   },
   detailValue: {
     fontSize: 16,
     fontWeight: '500',
-    color: Colors.text,
   },
   totalItem: {
     borderBottomWidth: 0,
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: Colors.primaryLight,
   },
   totalLabel: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: Colors.text,
   },
   totalValue: {
     fontSize: 20,
     fontWeight: 'bold',
   },
   exportButton: {
-    backgroundColor: Colors.primary,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 20,
@@ -550,9 +625,28 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   exportButtonText: {
-    color: Colors.surface,
     fontSize: 16,
     fontWeight: 'bold',
     marginLeft: 8,
+  },
+  customDateContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    paddingHorizontal: 8,
+  },
+  dateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    flex: 0.48,
+    justifyContent: 'center',
+  },
+  dateButtonText: {
+    marginLeft: 8,
+    fontSize: 14,
   },
 });
