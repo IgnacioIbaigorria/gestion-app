@@ -10,6 +10,8 @@ import { Ionicons } from '@expo/vector-icons';
 import i18n from '@/translations';
 import { useLanguage } from '../context/LanguageContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
+import React from 'react';
+import { ScrollView } from 'react-native-gesture-handler';
 // Remove the initializeApp import since we don't need it anymore
 // import { initializeApp } from '../services/appInitializer';
 // Remove the Constants import as well if not used elsewhere
@@ -94,17 +96,16 @@ function RootLayoutNav() {
   const { locale } = useLanguage();
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.primary }}>
+    <View style={{ flex: 1, backgroundColor: Colors.primary }}>
       <Stack
         screenOptions={{
+          headerShown: false,
           headerStyle: {
             backgroundColor: Colors.primary,
           },
-          headerTintColor: Colors.surface,
           headerTitleStyle: {
             fontWeight: 'bold',
           },
-          headerTitleAlign: 'center',
           statusBarStyle: 'inverted',
           statusBarHidden: false,
           statusBarAnimation: 'slide',
@@ -120,12 +121,13 @@ function RootLayoutNav() {
         <Stack.Screen
           name="settings/language"
           options={{
+            headerShown: false,
             presentation: 'modal',
             headerTitle: i18n.t('settings.language'),
           }}
         />
       </Stack>
-    </SafeAreaView>
+    </View>
   );
 }
 

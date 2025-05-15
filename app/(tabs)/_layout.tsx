@@ -51,6 +51,7 @@ export default function TabLayout() {
           headerStyle: {
             backgroundColor: theme.primary,
           },
+          headerShown: true,
           headerTintColor: theme.surface,
           headerTitleStyle: {
             fontWeight: 'bold',
@@ -179,20 +180,6 @@ export default function TabLayout() {
             ),
           }}
         />
-        {/* Settings Screen */}
-        <Drawer.Screen
-          name="settings/index"
-          options={{
-            title: i18n.t('settings.language'),
-            drawerLabel: i18n.t('settings.language'),
-            headerRight: ({ tintColor }) => (
-              <HeaderIcon name="language" tintColor={tintColor} />
-            ),
-            drawerIcon: ({ color }) => (
-              <Ionicons name="language" size={24} color={color} />
-            ),
-          }}
-        />
 
         {/* Other screens that shouldn't appear in drawer */}
         <Drawer.Screen
@@ -260,12 +247,6 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   headerIconContainer: {
     marginRight: 16,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   themeToggleContainer: {
     padding: 16,
