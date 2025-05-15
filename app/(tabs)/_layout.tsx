@@ -180,7 +180,6 @@ export default function TabLayout() {
             ),
           }}
         />
-
         {/* Other screens that shouldn't appear in drawer */}
         <Drawer.Screen
           name="productos/nuevo"

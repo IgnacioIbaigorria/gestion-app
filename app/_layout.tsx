@@ -103,6 +103,7 @@ function RootLayoutNav() {
           headerStyle: {
             backgroundColor: Colors.primary,
           },
+          headerTintColor: Colors.surface,
           headerTitleStyle: {
             fontWeight: 'bold',
           },
@@ -116,14 +117,6 @@ function RootLayoutNav() {
           name="(tabs)"
           options={{
             headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="settings/language"
-          options={{
-            headerShown: false,
-            presentation: 'modal',
-            headerTitle: i18n.t('settings.language'),
           }}
         />
       </Stack>
