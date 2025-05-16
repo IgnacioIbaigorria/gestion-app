@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Dimensions, TouchableOpacity, RefreshControl } from 'react-native';
-import { BarChart, PieChart } from 'react-native-chart-kit';
+import { BarChart, PieChart, LineChart } from 'react-native-chart-kit';
 import { productService } from '../../../services/productService';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import i18n from '@/translations';
@@ -8,6 +8,7 @@ import i18n from '@/translations';
 import { cashService } from '../../../services/cashService';
 import { salesService } from '@/services/salesService';
 import { useTheme } from '@/contexts/ThemeContext';
+import { eachDayOfInterval, format, isSameDay, subDays } from 'date-fns';
 
 interface Statistics {
   totalProducts: number;
@@ -20,6 +21,7 @@ interface Statistics {
   totalExpenses: number;
   netIncome: number;
   totalProfit: number;
+  balanceHistory: { date: Date; balance: number; }[];
 }
 
 export default function StatisticsScreen() {
@@ -42,6 +44,7 @@ export default function StatisticsScreen() {
     totalExpenses: 0,
     netIncome: 0,
     totalProfit: 0,
+    balanceHistory: [],
   });
 
   useEffect(() => {
@@ -59,6 +62,8 @@ export default function StatisticsScreen() {
         salesService.getAllSales()
       ]);
       // Add debug logs
+      let balanceHistory: { date: Date; balance: number }[] = [];
+
       
       const startOfDay = new Date(startDate);
       startOfDay.setHours(0, 0, 0, 0);
@@ -67,78 +72,151 @@ export default function StatisticsScreen() {
       endOfDay.setHours(23, 59, 59, 999);
       
       // Filter transactions based on date range
-      const filteredTransactions = transactions.filter((transaction: { date: Date | { toDate: () => Date } | string }) => {
-        let transactionDate;
-        
-        try {
-          // Handle different date formats
-          if (transaction.date instanceof Date) {
-            transactionDate = transaction.date;
-          } else if (transaction.date && typeof transaction.date === 'object' && 'toDate' in transaction.date) {
-            transactionDate = transaction.date.toDate();
-          } else if (transaction.date) {
-            // Handle string or timestamp
-            transactionDate = new Date(transaction.date);
-          } else {
-            // Skip transactions without dates
-            return false;
-          }
+      const filteredTransactions = transactions.filter((transaction: { date: Date }) => {
+        const transactionDate = transaction.date; // Ya         
+        switch (filterType) {
+          case 'monthly':
+            const today = new Date();
+            const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            firstDayOfMonth.setHours(0, 0, 0, 0);
+            return transactionDate >= firstDayOfMonth;
           
-          switch (filterType) {
-            case 'monthly':
-              const today = new Date();
-              const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-              firstDayOfMonth.setHours(0, 0, 0, 0);
-              return transactionDate >= firstDayOfMonth;
-            
-            case 'custom':
-              return transactionDate >= startOfDay && transactionDate <= endOfDay;
-            
-            default:
-              return true;
-          }
-        } catch (error) {
-          console.error('Error processing transaction date:', error, transaction);
-          return false; // Skip transactions with invalid dates
+          case 'custom':
+            return transactionDate >= startOfDay && transactionDate <= endOfDay;
+          
+          default:
+            return true;
         }
       });
   
-      // Filter sales based on the same date range with improved error handling
-      const filteredSales = sales.filter((sale: { date: Date | { toDate: () => Date } | string }) => {
-        let saleDate;
+      // Filter sales based on the same date range
+      const filteredSales = sales.filter((sale: { date: Date }) => {
+        const saleDate = sale.date; // Ya es Date
         
-        try {
-          // Handle different date formats
-          if (sale.date instanceof Date) {
-            saleDate = sale.date;
-          } else if (sale.date && typeof sale.date === 'object' && 'toDate' in sale.date) {
-            saleDate = sale.date.toDate();
-          } else if (sale.date) {
-            // Handle string or timestamp
-            saleDate = new Date(sale.date);
-          } else {
-            // Skip sales without dates
-            return false;
-          }
+        switch (filterType) {
+          case 'monthly':
+            const today = new Date();
+            const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            firstDayOfMonth.setHours(0, 0, 0, 0);
+            return saleDate >= firstDayOfMonth;
           
-          switch (filterType) {
-            case 'monthly':
-              const today = new Date();
-              const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-              firstDayOfMonth.setHours(0, 0, 0, 0);
-              return saleDate >= firstDayOfMonth;
-            
-            case 'custom':
-              return saleDate >= startOfDay && saleDate <= endOfDay;
-            
-            default:
-              return true;
-          }
-        } catch (error) {
-          console.error('Error processing sale date:', error, sale);
-          return false;
+          case 'custom':
+            return saleDate >= startOfDay && saleDate <= endOfDay;
+          
+          default:
+            return true;
         }
       });
+      const sortedTransactions = [...filteredTransactions].sort((a, b) => {
+        const dateA = a.date instanceof Date ? a.date : new Date(a.date);
+        const dateB = b.date instanceof Date ? b.date : new Date(b.date);
+        return dateA.getTime() - dateB.getTime();
+      });
+      let startDateForChart: Date;
+      let endDateForChart = new Date();
+      
+      switch (filterType) {
+        case 'monthly':
+          const today = new Date();
+          startDateForChart = new Date(today.getFullYear(), today.getMonth(), 1);
+          break;
+        case 'custom':
+          startDateForChart = startOfDay;
+          endDateForChart = endOfDay;
+          break;
+        default:
+          // For 'all', show last 30 days if there are many transactions, or all days if few
+          if (sortedTransactions.length > 30) {
+            startDateForChart = subDays(new Date(), 30);
+          } else if (sortedTransactions.length > 0) {
+            // Get the date of the first transaction
+            const firstTransaction = sortedTransactions[0];
+            const firstDate = firstTransaction.date instanceof Date 
+              ? firstTransaction.date 
+              : new Date(firstTransaction.date);
+            startDateForChart = firstDate;
+          } else {
+            startDateForChart = subDays(new Date(), 7); // Default to last week if no transactions
+          }
+      }
+      const daysInRange = eachDayOfInterval({
+        start: startDateForChart,
+        end: endDateForChart
+      });
+      
+      // Initialize with starting balance of 0
+      let runningBalance = 0;
+      
+      // Create initial data point
+      balanceHistory.push({
+        date: daysInRange[0],
+        balance: runningBalance
+      });
+      for (const transaction of sortedTransactions) {
+        const transactionDate = transaction.date instanceof Date 
+          ? transaction.date 
+          : new Date(transaction.date);
+        
+        // Update running balance based on transaction type
+        switch (transaction.type) {
+          case 'sale':
+          case 'deposit':
+            runningBalance += transaction.amount;
+            break;
+          case 'expense':
+          case 'withdrawal':
+            runningBalance -= transaction.amount;
+            break;
+        }
+        
+        // Find or create entry for this date
+        const existingEntry = balanceHistory.find(entry => 
+          isSameDay(entry.date, transactionDate)
+        );
+        
+        if (existingEntry) {
+          existingEntry.balance = runningBalance;
+        } else {
+          // Find the right position to insert this date
+          const insertIndex = balanceHistory.findIndex(entry => 
+            entry.date.getTime() > transactionDate.getTime()
+          );
+          
+          if (insertIndex >= 0) {
+            balanceHistory.splice(insertIndex, 0, {
+              date: transactionDate,
+              balance: runningBalance
+            });
+          } else {
+            balanceHistory.push({
+              date: transactionDate,
+              balance: runningBalance
+            });
+          }
+        }
+      }
+      balanceHistory.sort((a, b) => a.date.getTime() - b.date.getTime());
+      
+      // Ensure we have data points for all days in range
+      const completeBalanceHistory: typeof balanceHistory = [];
+      let lastBalance = 0;
+      
+      for (const day of daysInRange) {
+        const existingEntry = balanceHistory.find(entry => 
+          isSameDay(entry.date, day)
+        );
+        
+        if (existingEntry) {
+          lastBalance = existingEntry.balance;
+          completeBalanceHistory.push(existingEntry);
+        } else {
+          completeBalanceHistory.push({
+            date: day,
+            balance: lastBalance
+          });
+        }
+      }
+
   
       // Calculate product statistics
       const statistics = products.reduce<Statistics>((acc, product) => {
@@ -173,6 +251,7 @@ export default function StatisticsScreen() {
         totalExpenses: 0,
         netIncome: 0,
         totalProfit: 0,
+        balanceHistory: [],
       });
       
       // Calculate potential profit
@@ -182,8 +261,6 @@ export default function StatisticsScreen() {
       const financialStats = filteredTransactions.reduce((acc: { totalIncome: any; totalExpenses: any; }, transaction: { type: any; amount: any; }) => {
         switch (transaction.type) {
           case 'sale':
-            acc.totalIncome += transaction.amount;
-            break;
           case 'deposit':
             acc.totalIncome += transaction.amount;
             break;
@@ -206,15 +283,9 @@ export default function StatisticsScreen() {
         map[product.id!] = product;
         return map;
       }, {} as Record<string, any>);
-      
-      // Track total sales amount separately
-      let totalSalesAmount = 0;
             
       // Calculate profit from each sale by comparing selling price to cost price
-      filteredSales.forEach((sale: { items: any[]; total_amount: number; }) => {
-        // Add the total amount of each sale to the total sales amount
-        const saleAmount = Number(sale.total_amount) || 0;
-        totalSalesAmount += saleAmount;
+      filteredSales.forEach((sale: { items: any[]; }) => {
         
         if (sale.items && sale.items.length > 0) {
           sale.items.forEach(item => {
@@ -223,7 +294,7 @@ export default function StatisticsScreen() {
             if (product) {
               // Ensure all values are valid numbers before calculation
               const itemPrice = Number(item.unitPrice) || 0;
-              const costPrice = Number(product.cost_price) || 0;
+              const costPrice = Number(product.costPrice) || 0;
               const quantity = Number(item.quantity) || 0;
               
               // Calculate profit for this item: (selling price - cost price) * quantity
@@ -235,10 +306,12 @@ export default function StatisticsScreen() {
         }
       });
       
-      statistics.totalIncome = totalSalesAmount;
+      // Update statistics with financial data
+      statistics.totalIncome = isNaN(financialStats.totalIncome) ? 0 : Number(financialStats.totalIncome);
       statistics.totalExpenses = isNaN(financialStats.totalExpenses) ? 0 : Number(financialStats.totalExpenses);
       statistics.netIncome = statistics.totalIncome - statistics.totalExpenses;
-      
+      statistics.balanceHistory = completeBalanceHistory;
+
       // Use actual calculated profit instead of percentage estimate
       // Ensure we're storing a valid number
       actualProfit = actualProfit - statistics.totalExpenses;
@@ -252,7 +325,7 @@ export default function StatisticsScreen() {
       setLoading(false);
     }
   };
-    
+
   const handleDateSelect = (event: any, selectedDate?: Date) => {
     setShowDatePicker(false);
     if (selectedDate) {
@@ -485,6 +558,99 @@ export default function StatisticsScreen() {
     return `${r}, ${g}, ${b}`;
   };
     
+  const renderBalanceHistoryChart = () => {
+    if (stats.balanceHistory.length < 2) {
+      return (
+        <View style={[styles.chartContainer, { backgroundColor: theme.surface }]}>
+          <Text style={[styles.chartTitle, { color: theme.text }]}>Historial de saldo</Text>
+          <Text style={[styles.chartDescription, { color: theme.textLight }]}>
+            No hay suficientes dato para mostrar en el historial de saldo.
+          </Text>
+        </View>
+      );
+    }
+  
+    const maxDataPoints = 6;
+    let displayLabels: string[];
+    let displayData: number[];
+  
+    if (stats.balanceHistory.length > maxDataPoints) {
+      const step = Math.ceil(stats.balanceHistory.length / maxDataPoints);
+      const reduced = stats.balanceHistory.filter((_, index) => index % step === 0);
+  
+      // Si el último punto no está incluido, lo agregamos
+      if (reduced[reduced.length - 1] !== stats.balanceHistory[stats.balanceHistory.length - 1]) {
+        reduced.push(stats.balanceHistory[stats.balanceHistory.length - 1]);
+      }
+  
+      // Si hay más de maxDataPoints, recorta al máximo permitido
+      while (reduced.length > maxDataPoints) {
+        reduced.splice(1, 1); // Quita del medio
+      }
+  
+      displayLabels = reduced.map(item => format(item.date, 'dd/MM'));
+      displayData = reduced.map(item => item.balance);
+    } else {
+      displayLabels = stats.balanceHistory.map(item => format(item.date, 'dd/MM'));
+      displayData = stats.balanceHistory.map(item => item.balance);
+    }
+  
+    const balanceData = {
+      labels: displayLabels,
+      datasets: [
+        {
+          data: displayData,
+          color: (opacity = 1) => `rgba(46, 204, 113, ${opacity})`,
+          strokeWidth: 2
+        }
+      ],
+      legend: ['Saldo']
+    };
+    const screenWidth = Dimensions.get('window').width;
+    const chartWidth = screenWidth - 50;
+  
+    return (
+      <View style={[styles.chartContainer, { backgroundColor: theme.surface }]}>
+        <Text style={[styles.chartTitle, { color: theme.text }]}>Historial de saldo</Text>
+        <Text style={[styles.chartDescription, { color: theme.textLight }]}>
+          Evolución del saldo a lo largo del tiempo
+        </Text>
+        <LineChart
+          data={balanceData}
+          width={chartWidth - 30}
+          height={220}
+          chartConfig={{
+            ...chartConfig,
+            backgroundGradientFrom: theme.surface,
+            backgroundGradientTo: theme.surface,
+            decimalPlaces: 0,
+            color: (opacity = 1) => `rgba(46, 204, 113, ${opacity})`,
+            labelColor: (opacity = 1) => theme.text,
+            propsForDots: {
+              r: "4",
+              strokeWidth: "2",
+              stroke: theme.primary
+            },
+            propsForLabels: {
+              fontSize: 11,
+              fontWeight: 'bold',
+              fill: theme.text,
+            },
+          }}
+          bezier
+          style={styles.chart}
+          yAxisLabel="$"
+          yAxisSuffix=""
+          fromZero
+          withInnerLines={true}
+          withOuterLines={true}
+          withHorizontalLines={true}
+          withVerticalLines={true}
+        />
+      </View>
+    );
+  };
+
 
   return (
     <ScrollView 
@@ -614,12 +780,17 @@ export default function StatisticsScreen() {
           </View>
         </View>
       </View>
+
+      <View style={styles.chartSection}>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Flujo de dinero</Text>
+        {renderBalanceHistoryChart()}
+      </View>
       
       <View style={styles.balanceContainer}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>{i18n.t('statistics.financialBalance')}</Text>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Balance financiero</Text>
         
         <View style={[styles.chartContainer, { backgroundColor: theme.surface }]}>
-          <Text style={[styles.chartTitle, { color: theme.text }]}>{i18n.t('statistics.financialSummary')}</Text>
+          <Text style={[styles.chartTitle, { color: theme.text }]}>Resumen financiero</Text>
           <Text style={[styles.chartDescription, { color: theme.textLight }]}>
             {i18n.t('statistics.financialAnalysis')}
           </Text>

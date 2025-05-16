@@ -71,18 +71,6 @@ export default function RootLayout() {
     return null;
   }
 
-  // Remove the database error check
-  // if (dbError) {
-  //   return (
-  //     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-  //       <Text style={{ fontSize: 18, color: 'red', textAlign: 'center', marginBottom: 20 }}>
-  //         Error connecting to database. Please check your connection and restart the app.
-  //       </Text>
-  //       <Text style={{ fontSize: 14, color: 'gray' }}>{dbError}</Text>
-  //     </View>
-  //   );
-  // }
-
   return (
     <ThemeProvider>
       <LanguageProvider>

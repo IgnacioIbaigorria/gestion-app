@@ -272,20 +272,20 @@ export default function ProductsScreen() {
 
   const handleDeleteProduct = (id: string) => {
     Alert.alert(
-      i18n.t('products.confirmDelete'),
-      i18n.t('products.confirmDeleteMessage'),
+      'Eliminar producto',
+      '¿Estás seguro de que deseas eliminar este producto?',
       [
-        { text: i18n.t('common.cancel'), style: 'cancel' },
+        { text: 'Cancelar', style: 'cancel' },
         { 
-          text: i18n.t('common.delete'), 
+          text: 'Eliminar', 
           style: 'destructive',
           onPress: async () => {
             try {
               await productService.deleteProduct(id);
-              Alert.alert(i18n.t('common.success'), i18n.t('products.successMessage'));
+              Alert.alert('Éxito', 'Producto eliminado correctamente');
               loadProducts();
             } catch (error) {
-              Alert.alert(i18n.t('common.error'), i18n.t('products.errorMessage'));
+              Alert.alert('Error', 'No se pudo eliminar el producto');
               console.error(error);
             }
           }
@@ -339,7 +339,7 @@ export default function ProductsScreen() {
         <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
           <ActivityIndicator size="large" color={theme.primary} />
           <Text style={[styles.loadingText, { color: theme.textLight }]}>
-              {i18n.t('products.loading')}
+              Cargando productos...
           </Text>
         </View>
       );
@@ -356,7 +356,7 @@ export default function ProductsScreen() {
                 borderColor: theme.primaryLight,
                 color: theme.text
               }]}
-              placeholder={i18n.t('products.search')}
+              placeholder="Buscar productos"
               placeholderTextColor={theme.textLight}
               value={searchText}
               onChangeText={setSearchText}
@@ -421,7 +421,7 @@ export default function ProductsScreen() {
           onRefresh={loadProducts}
           ListEmptyComponent={
             <Text style={[styles.emptyText, { color: theme.textLight }]}>
-              {i18n.t('products.empty')}
+              No hay productos para mostrar.
             </Text>
           }
           onScrollToIndexFailed={info => {

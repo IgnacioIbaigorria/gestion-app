@@ -261,11 +261,11 @@ export default function AddEditProductScreen() {
       <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
         <View style={[styles.formContainer, { backgroundColor: theme.surface }]}>
           <Text style={[styles.title, { color: theme.text }]}>
-            {isEditing ? i18n.t('products.edit') : i18n.t('products.add')}
+            {isEditing ? 'Editar producto' : 'Agregar producto'}
           </Text>
           
           <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: theme.text }]}>{i18n.t('products.productName')}</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Nombre de producto</Text>
             <TextInput
               style={[styles.input, { 
                 backgroundColor: theme.background, 
@@ -274,13 +274,13 @@ export default function AddEditProductScreen() {
               }]}
               value={name}
               onChangeText={setName}
-              placeholder={i18n.t('products.enterProductName')}
+              placeholder="Ingrese el nombre del producto"
               placeholderTextColor={theme.textLight}
             />
           </View>
           
           <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: theme.text }]}>{i18n.t('products.quantity')}</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Cantidad</Text>
             <TextInput
               style={[styles.input, { 
                 backgroundColor: theme.background, 
@@ -296,7 +296,7 @@ export default function AddEditProductScreen() {
           </View>
           
           <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: theme.text }]}>{i18n.t('products.costPrice')}</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Precio de costo</Text>
             <TextInput
               style={[styles.input, { 
                 backgroundColor: theme.background, 
@@ -319,7 +319,7 @@ export default function AddEditProductScreen() {
           </View>
           
           <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: theme.text }]}>{i18n.t('products.sellingPrice')}</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Precio de venta</Text>
             <TextInput
               style={[styles.input, { 
                 backgroundColor: theme.background, 
@@ -336,7 +336,7 @@ export default function AddEditProductScreen() {
           </View>
           
           <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: theme.text }]}>{i18n.t('products.profitMargin')} (%)</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Margen de ganancia (%)</Text>
             <TextInput
               style={[styles.input, { 
                 backgroundColor: theme.background, 
@@ -346,7 +346,6 @@ export default function AddEditProductScreen() {
               value={profitMargin}
               onChangeText={setProfitMargin}
               onEndEditing={() => {
-                // Recalcular precio de venta cuando termina de editar el margen
                 calculateSellingPrice();
               }}
               keyboardType="numeric"
@@ -355,7 +354,7 @@ export default function AddEditProductScreen() {
             />
           </View>
           <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: theme.text }]}>{i18n.t('products.lowStock')}</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Stock mínimo</Text>
             <View style={styles.thresholdContainer}>
               <TextInput
                 style={[styles.input, { 
@@ -370,7 +369,7 @@ export default function AddEditProductScreen() {
                 placeholderTextColor={theme.textLight}
               />
               <Text style={[styles.thresholdHelperText, { color: theme.textLight }]}>
-                {i18n.t('products.lowStockThresholdDesc')}
+                Ingresa el valor mínimo de stock para considerar bajo stock.
               </Text>
             </View>
           </View>
@@ -413,7 +412,7 @@ export default function AddEditProductScreen() {
               style={styles.manageTags}
               onPress={() => router.push('/productos/tags')}
             >
-              <Text style={[styles.manageTagsText, { color: theme.text }]}>{i18n.t('products.manageTags')}</Text>
+              <Text style={[styles.manageTagsText, { color: theme.text }]}>Administrar etiquetas</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.formGroup}>
@@ -449,7 +448,7 @@ export default function AddEditProductScreen() {
               style={styles.manageCategories}
               onPress={() => router.push('/productos/categorias')}
             >
-              <Text style={[styles.manageCategoriesText, { color: theme.text }]}>{i18n.t('products.manageCategories')}</Text>
+              <Text style={[styles.manageCategoriesText, { color: theme.text }]}>Administrar categorías</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.buttonContainer}>
@@ -458,7 +457,7 @@ export default function AddEditProductScreen() {
               onPress={() => router.back()}
               disabled={loading}
             >
-              <Text style={[styles.buttonText, { color: theme.surface }]}>{i18n.t('common.cancel')}</Text>
+              <Text style={[styles.buttonText, { color: theme.surface }]}>Cancelar</Text>
             </TouchableOpacity>
             
             <TouchableOpacity
@@ -469,7 +468,7 @@ export default function AddEditProductScreen() {
               {loading ? (
                 <ActivityIndicator size="small" color={theme.surface} />
               ) : (
-                <Text style={[styles.buttonText, { color: theme.surface }]}>{i18n.t('common.save')}</Text>
+                <Text style={[styles.buttonText, { color: theme.surface }]}>Guardar</Text>
               )}
             </TouchableOpacity>
           </View>

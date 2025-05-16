@@ -61,6 +61,7 @@ export default function TabLayout() {
             backgroundColor: theme.background,
           },
           drawerActiveTintColor: theme.primary,
+          drawerHideStatusBarOnOpen: true,
           drawerInactiveTintColor: theme.text,
           headerRight: ({ tintColor }) => (
             <View style={styles.headerIconContainer} />
