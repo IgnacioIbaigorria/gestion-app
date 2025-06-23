@@ -24,13 +24,10 @@ export default function ProductDetailScreen() {
   useEffect(() => {
     if (id && isFocused) {
       loadProduct(id);
+      loadCategories();
     }
   }, [id, isFocused]);
-  
-  useEffect(() => {
-    loadCategories();
-  }, []);
-  
+    
   const loadCategories = async () => {
     try {
       const categoriesData = await categoryService.getAllCategories();
@@ -142,30 +139,38 @@ export default function ProductDetailScreen() {
             color: theme.primary,
             borderBottomColor: theme.primaryLight 
           }]}>
-            {i18n.t('products.detail.priceInformation')}
+            Información de precio
           </Text>
           <View style={[styles.priceRow, { borderBottomColor: theme.background }]}>
             <Text style={[styles.priceLabel, { color: theme.text }]}>
-              {i18n.t('products.costPrice')}:
+              Precio de costo:
             </Text>
             <Text style={[styles.priceValue, { color: theme.text }]}>
-              ${product.cost_price}
+              ${product.cost_price.toLocaleString('es-ES')}
             </Text>
           </View>
           <View style={[styles.priceRow, { borderBottomColor: theme.background }]}>
             <Text style={[styles.priceLabel, { color: theme.text }]}>
-              {i18n.t('products.sellingPrice')}:
+              Precio por caja:
             </Text>
             <Text style={[styles.priceValue, { color: theme.text }]}>
-              ${product.selling_price}
+              ${product.selling_price.toLocaleString('es-ES')}
             </Text>
           </View>
           <View style={[styles.priceRow, { borderBottomColor: theme.background }]}>
             <Text style={[styles.priceLabel, { color: theme.text }]}>
-              {i18n.t('products.sellingPriceMargin')}:
+              Precio por unidad:
+            </Text>
+            <Text style={[styles.priceValue, { color: theme.text }]}>
+              ${product.unit_price.toLocaleString('es-ES')}
+            </Text>
+          </View>
+          <View style={[styles.priceRow, { borderBottomColor: theme.background }]}>
+            <Text style={[styles.priceLabel, { color: theme.text }]}>
+              Margen de ganancia por caja:
             </Text>
             <Text style={[styles.priceValue, styles.margin, { color: theme.success }]}>
-              {product.profit_margin.toFixed(2)}%
+              {product.profit_margin.toLocaleString('es-ES')}%
             </Text>
           </View>
         </View>
@@ -179,10 +184,18 @@ export default function ProductDetailScreen() {
           </Text>
           <View style={[styles.priceRow, { borderBottomColor: theme.background }]}>
             <Text style={[styles.priceLabel, { color: theme.text }]}>
-              {i18n.t('products.currentQuantity')}:
+              Cantidad de cajas:
             </Text>
             <Text style={[styles.stockValue, { color: theme.text }]}>
-              {product.quantity || 0} {i18n.t('products.units')}
+              {product.quantity || 0} cajas
+            </Text>
+          </View>
+          <View style={[styles.priceRow, { borderBottomColor: theme.background }]}>
+            <Text style={[styles.priceLabel, { color: theme.text }]}>
+              Cantidad de unidades:
+            </Text>
+            <Text style={[styles.stockValue, { color: theme.text }]}>
+              {product.units || 0} unidades
             </Text>
           </View>
           <View style={[styles.priceRow, { borderBottomColor: theme.background }]}>
@@ -190,7 +203,7 @@ export default function ProductDetailScreen() {
               {i18n.t('products.lowStockThreshold')}:
             </Text>
             <Text style={[styles.stockValue, { color: theme.text }]}>
-              {product.low_stock_threshold || 5} {i18n.t('products.units')}
+              {product.low_stock_threshold || 1} cajas | {(product.low_stock_threshold || 1) * product.cantidad_por_caja} unidades
             </Text>
           </View>
         </View>

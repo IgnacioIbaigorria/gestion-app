@@ -47,7 +47,7 @@ export default function SaleItem({ sale, onDelete }: SaleItemProps) {
             {sale.items.length} productos ({getTotalItems()} ítems)
           </Text>
           <Text style={[styles.amount, { color: theme.primary }]}>
-            ${sale.total_amount.toFixed(2)}
+            ${sale.total_amount.toLocaleString('es-ES')}
           </Text>
         </View>
         

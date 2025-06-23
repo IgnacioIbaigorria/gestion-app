@@ -36,17 +36,21 @@ interface ProductItemProps {
   product: Product & { tagObjects?: Tag[] };
   onDelete: (id: string) => void;
   highlighted?: boolean;
-  category?: Category;  // This prop is optional and may be passed from parent
+  category?: Category;
+  selected?: boolean;
+  selectionMode?: boolean;
+  onLongPress?: () => void;
+  onPress?: () => void;
 }
 
-export default function ProductItem({ product, onDelete, highlighted, category }: ProductItemProps) {
+export default function ProductItem({ product, onDelete, highlighted, category, selected = false, selectionMode = false, onLongPress, onPress }: ProductItemProps) {
   const { theme } = useTheme();
   const [productTags, setProductTags] = useState<Tag[]>([]);
   const [productCategory, setProductCategory] = useState<Category | null>(null);
   
   // Fix the low stock calculation to properly compare values
-  const isLowStock = (product.quantity || 0) <= (product.low_stock_threshold || 5);
-  
+  const isLowStock = (product.quantity || 0) <= (product.low_stock_threshold || 2);
+  const isLowStockUnity = (product.quantity || 0) <=((product.low_stock_threshold? product.low_stock_threshold : 2) * (product.cantidad_por_caja || 1));
   useEffect(() => {
     // Clear previous tags when product changes
     setProductTags([]);
@@ -117,11 +121,28 @@ export default function ProductItem({ product, onDelete, highlighted, category }
     }
   };
 
+  // Handler para navegación normal (solo si no está en modo selección)
+  const handlePress = () => {
+    if (selectionMode && onPress) {
+      onPress();
+    } else {
+      productService.clearProductCache(product.id!);
+      router.push(`/productos/${product.id}`);
+    }
+  };
+
+  // Handler para long press (activar selección)
+  const handleLongPress = () => {
+    if (onLongPress) {
+      onLongPress();
+    }
+  };
+
   return (
     <TouchableOpacity
       style={[
         styles.container,
-        { backgroundColor: theme.surface },
+        { backgroundColor: selected ? theme.primaryLight : theme.surface },
         highlighted && {
           borderWidth: 1,
           borderColor: theme.primary,
@@ -132,21 +153,39 @@ export default function ProductItem({ product, onDelete, highlighted, category }
           backgroundColor: theme.warningLight
         }
       ]}
-      onPress={() => {
-        // Clear the cache for this product before navigating
-        productService.clearProductCache(product.id!);
-        router.push(`/productos/${product.id}`);
-      }}
+      onPress={handlePress}
+      onLongPress={handleLongPress}
+      delayLongPress={300}
     >
+      {/* Indicador visual de selección */}
+      {selectionMode && (
+        <View style={{
+          width: 24, height: 24, borderRadius: 12,
+          borderWidth: 2,
+          borderColor: selected ? theme.primary : theme.textLight,
+          backgroundColor: selected ? theme.primary : 'transparent',
+          justifyContent: 'center', alignItems: 'center',
+          marginRight: 10,
+        }}>
+          {selected && (
+            <Ionicons name="checkmark" size={16} color="#fff" />
+          )}
+        </View>
+      )}
       <View style={styles.content}>
         <View style={styles.header}>
           <Text style={[styles.name, { color: theme.text }]}>{product.name}</Text>
         </View>
         
         <View style={styles.details}>
-          <Text style={[styles.price, { color: theme.text }]}>
-            ${product.selling_price}
-          </Text>
+          <View style={styles.prices}>
+            <Text style={[styles.price, { color: theme.text }]}>
+              Caja: ${product.selling_price.toLocaleString('es-ES')}
+            </Text>
+            <Text style={[styles.price, { color: theme.text }]}>
+              Unidad: ${product.unit_price.toLocaleString('es-ES')}
+            </Text>
+          </View>
           <View style={styles.stockContainer}>
           {isLowStock && (
               <Ionicons 
@@ -161,10 +200,20 @@ export default function ProductItem({ product, onDelete, highlighted, category }
               { color: isLowStock ? theme.warning : theme.textLight },
               isLowStock && { fontWeight: '500' }
             ]}>
-              {i18n.t('products.stock')}: {product.quantity || 0}
+              Cajas: {product.quantity || 0}
             </Text>
+            {isLowStockUnity && (
+              <Text style={[
+                styles.stock,
+                { color: theme.warning },
+                isLowStock && { fontWeight: '500' }
+              ]}>
+                Unidades: {product.units}
+              </Text>
+            )}
           </View>
         </View>
+
 
         <View style={styles.metadataContainer}>
           {productTags.length > 0 && (
@@ -191,7 +240,7 @@ export default function ProductItem({ product, onDelete, highlighted, category }
         onPress={() => {
           // Clear the cache for this product before navigating to edit
           productService.clearProductCache(product.id!);
-          router.push(`/productos/nuevo?id=${product.id}`);
+          router.push(`/productos/nuevo?id=${product.id}&returnTo=productos`);
         }}
       >
         <Ionicons name="pencil" size={20} color={theme.primary} />
@@ -252,6 +301,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  prices: {
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+  },
   price: {
     fontSize: 16,
     fontWeight: '500',
@@ -300,7 +353,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   stockContainer: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
   },
   

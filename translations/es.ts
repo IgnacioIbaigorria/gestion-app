@@ -117,6 +117,7 @@ export default {
     complete: 'Completar Venta',
     cancel: 'Cancelar',
     searchProduct: 'Buscar Producto',
+    deleteSuccess: 'Venta eliminada correctamente',
     quantity: 'Cantidad',
     add: 'Agregar',
     loading: 'Cargando ventas...',

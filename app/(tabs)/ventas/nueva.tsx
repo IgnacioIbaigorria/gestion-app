@@ -207,11 +207,11 @@ export default function NewSaleScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={[styles.card, {backgroundColor: theme.surface}]}>
-          <Text style={[styles.title, {color: theme.text}]}>{i18n.t('sales.new')}</Text>
+          <Text style={[styles.title, {color: theme.text}]}>Nueva venta</Text>
           
           <View style={[styles.section, { zIndex: 1000 }]}>
             <Text style={[styles.sectionTitle, {color: theme.primary, borderBottomColor: theme.primaryLight}]}>
-              {i18n.t('sales.searchProduct')}
+              Buscar producto
             </Text>
             <ProductSearchInput onSelectProduct={handleSelectProduct} />
             
@@ -222,16 +222,16 @@ export default function NewSaleScreen() {
                     {selectedProduct.name}
                   </Text>
                   <Text style={[styles.selectedProductPrice, {color: theme.primary}]}>
-                    {i18n.t('sales.price')}: ${selectedProduct.selling_price}
+                    Precio: ${selectedProduct.selling_price.toLocaleString('es-ES')}
                   </Text>
                   <Text style={[styles.selectedProductStock, {color: theme.textLight}]}>
-                    {i18n.t('sales.availableStock')}: {selectedProduct.quantity || 0}
+                    Stock: {selectedProduct.quantity || 0}
                   </Text>
                 </View>
                 
                 <View style={styles.quantityContainer}>
                   <Text style={[styles.quantityLabel, {color: theme.text}]}>
-                    {i18n.t('sales.quantity')}:
+                    Cantidad:
                   </Text>
                   <TextInput
                     style={[styles.quantityInput, {
@@ -252,7 +252,7 @@ export default function NewSaleScreen() {
                   >
                     <Ionicons name="add-circle" size={20} color={theme.surface} />
                     <Text style={[styles.addToCartButtonText, {color: theme.surface}]}>
-                      {i18n.t('sales.add')}
+                      Agregar
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -261,7 +261,7 @@ export default function NewSaleScreen() {
                   >
                     <Ionicons name="close-circle" size={20} color={theme.surface} />
                     <Text style={[styles.addToCartButtonText, {color: theme.surface}]}>
-                      {i18n.t('common.cancel')}
+                      Cancelar
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -284,11 +284,11 @@ export default function NewSaleScreen() {
                         {item.productName}
                       </Text>
                       <Text style={[styles.cartItemDetails, {color: theme.textLight}]}>
-                        {item.quantity} x ${item.unitPrice}
+                        {item.quantity} x ${item.unitPrice.toLocaleString('es-ES')}
                       </Text>
                     </View>
                     <Text style={[styles.cartItemSubtotal, {color: theme.primary}]}>
-                      ${item.subtotal}
+                      ${item.subtotal.toLocaleString('es-ES')}
                     </Text>
                     <TouchableOpacity
                       style={styles.removeButton}
@@ -437,7 +437,7 @@ export default function NewSaleScreen() {
                   {loading ? (
                     <ActivityIndicator size="small" color={theme.surface} />
                   ) : (
-                    <Text style={{ color: theme.surface }}>{i18n.t('receipt.generate')}</Text>
+                    <Text style={{ color: theme.text, textAlign:'center' }}>{i18n.t('receipt.generate')}</Text>
                   )}
                 </TouchableOpacity>
               </View>
@@ -691,6 +691,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    textAlign: 'center',
     marginHorizontal: 8,
     borderWidth: 1,
   },

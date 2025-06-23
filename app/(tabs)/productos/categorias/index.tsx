@@ -213,6 +213,9 @@ export default function CategoriesScreen() {
         borderBottomColor: theme.border
       }]}>
         <Text style={[styles.title, { color: theme.text }]}>Categorías</Text>
+        <TouchableOpacity onPress={loadCategories}>
+          <Ionicons size={28}name="refresh" style={{ color: 'white', fontWeight: 'bold' }} />
+        </TouchableOpacity>
       </View>
 
       <View style={[styles.formContainer, { 
@@ -278,6 +281,8 @@ const styles = StyleSheet.create({
   header: {
     padding: 16,
     borderBottomWidth: 1,
+    justifyContent: 'space-between',
+    flexDirection: 'row'
   },
   title: {
     fontSize: 20,

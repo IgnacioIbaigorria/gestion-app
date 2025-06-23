@@ -130,11 +130,11 @@ export default function SaleDetailScreen() {
               <View style={styles.itemInfo}>
                 <Text style={[styles.itemName, { color: theme.text }]}>{item.productName}</Text>
                 <Text style={[styles.itemDetails, { color: theme.textLight }]}>
-                  {item.quantity} x ${item.unitPrice.toFixed(2)}
+                  {item.quantity} x ${item.unitPrice.toLocaleString('es-ES')}
                 </Text>
               </View>
               <Text style={[styles.itemSubtotal, { color: theme.primary }]}>
-                ${item.subtotal.toFixed(2)}
+                ${item.subtotal.toLocaleString('es-ES')}
               </Text>
             </View>
           ))}
@@ -162,7 +162,7 @@ export default function SaleDetailScreen() {
           <View style={[styles.summaryRow, styles.totalRow, { borderTopColor: theme.primaryLight }]}>
             <Text style={[styles.totalLabel, { color: theme.text }]}>{i18n.t('sales.detail.total')}:</Text>
             <Text style={[styles.totalValue, { color: theme.primary }]}>
-              ${sale.total_amount.toFixed(2)}
+              ${sale.total_amount.toLocaleString('es-ES')}
             </Text>
           </View>
         </View>

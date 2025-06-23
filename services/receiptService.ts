@@ -24,8 +24,8 @@ export const receiptService = {
       <tr>
         <td>${item.productName}</td>
         <td>${item.quantity}</td>
-        <td>$${item.unitPrice.toFixed(2)}</td>
-        <td>$${item.subtotal.toFixed(2)}</td>
+        <td>$${item.unitPrice.toLocaleString('es-ES')}</td>
+        <td>$${item.subtotal.toLocaleString('es-ES')}</td>
       </tr>
     `).join('');
     
@@ -155,7 +155,7 @@ export const receiptService = {
                 <span>${sale.payment_method}</span>
               </div>
               <div class="total">
-                ${i18n.t('receipt.total')}: $${sale.total_amount.toFixed(2)}
+                ${i18n.t('receipt.total')}: $${sale.total_amount.toLocaleString('es-ES')}
               </div>
             </div>
             

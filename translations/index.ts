@@ -12,7 +12,12 @@ const i18n = new I18n({
 });
 
 // Set the locale once at the beginning of your app
-i18n.locale = Localization.locale.split('-')[0];
+const locales = Localization.getLocales && Localization.getLocales();
+const locale =
+  Array.isArray(locales) && locales.length > 0 && locales[0].languageCode
+    ? locales[0].languageCode
+    : 'es';
+i18n.locale = locale;
 i18n.enableFallback = true;
 i18n.defaultLocale = 'es';
 

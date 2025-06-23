@@ -65,7 +65,7 @@ export default function CashRegisterScreen() {
       const balance = await cashService.getCurrentBalance();
       setCurrentBalance(balance);
     } catch (error) {
-      Alert.alert(i18n.t('common.error'), i18n.t('cash.errorLoadData'));
+      Alert.alert('Error', i18n.t('cash.errorLoadData'));
       console.error(error);
     } finally {
       setLoading(false);
@@ -82,12 +82,12 @@ export default function CashRegisterScreen() {
       
       // Show success message
       Alert.alert(
-        i18n.t('common.success'),
+        'Éxito',
         `${syncedCount} ${i18n.t('cash.salesSynced')}`
       );
     } catch (error) {
       console.error('Error syncing sales:', error);
-      Alert.alert(i18n.t('common.error'), i18n.t('cash.syncError'));
+      Alert.alert('Error', i18n.t('cash.syncError'));
     } finally {
       setLoading(false);
     }
@@ -130,17 +130,28 @@ export default function CashRegisterScreen() {
   };
 
   const getTransactionTypeText = (type: string) => {
-    return i18n.t(`cash.${type}`);
+    switch (type) {
+      case 'expense':
+        return 'Gasto';
+      case 'withdrawal':
+        return 'Retiro';
+      case 'sale':
+        return 'Venta';
+      case 'deposit':
+        return 'Depósito';
+      default:
+        return 'Tipo: ' + type.charAt(0).toUpperCase() + type.slice(1);
+    }
   };
 
   const handleAddTransaction = async () => {
     if (!amount || parseFloat(amount) <= 0) {
-      Alert.alert(i18n.t('common.error'), i18n.t('cash.errorValidAmount'));
+      Alert.alert('Error', 'El monto debe ser mayor que 0');
       return;
     }
 
     if (!description.trim()) {
-      Alert.alert(i18n.t('common.error'), i18n.t('cash.errorDescription'));
+      Alert.alert('Error', 'La descripción no puede estar vacía');
       return;
     }
 
@@ -162,9 +173,9 @@ export default function CashRegisterScreen() {
       
       loadData();
       
-      Alert.alert(i18n.t('common.success'), i18n.t('cash.successTransaction'));
+      Alert.alert('Éxito', 'Transacción registrada correctamente');
     } catch (error) {
-      Alert.alert(i18n.t('common.error'), i18n.t('cash.errorTransaction'));
+      Alert.alert('Error', 'Error al registrar la transacción');
       console.error(error);
     } finally {
       setSubmitting(false);
@@ -176,33 +187,33 @@ export default function CashRegisterScreen() {
   // Only allow deletion of expenses, deposits, and withdrawals (not sales)
   if (transaction.type === 'sale') {
     Alert.alert(
-      i18n.t('common.error'),
-      i18n.t('cash.cannotDeleteSale'),
+      'Error',
+      'No se puede eliminar una venta',
       [{ text: i18n.t('common.ok') }]
     );
     return;
   }
 
   Alert.alert(
-    i18n.t('common.confirm'),
-    i18n.t('cash.confirmDelete'),
+    'Confirmar',
+    '¿Estás seguro de que deseas eliminar esta transacción?',
     [
       {
-        text: i18n.t('common.cancel'),
+        text: 'Cancelar',
         style: 'cancel'
       },
       {
-        text: i18n.t('common.delete'),
+        text: 'Eliminar',
         style: 'destructive',
         onPress: async () => {
           try {
             setLoading(true);
             await cashService.deleteTransaction(transaction.id!);
             loadData();
-            Alert.alert(i18n.t('common.success'), i18n.t('cash.deleteSuccess'));
+            Alert.alert('Éxito', 'Transacción eliminada correctamente');
           } catch (error) {
             console.error('Error deleting transaction:', error);
-            Alert.alert(i18n.t('common.error'), i18n.t('cash.deleteError'));
+            Alert.alert('Error', 'Error al eliminar la transacción');
           } finally {
             setLoading(false);
           }
@@ -234,7 +245,7 @@ const renderTransactionItem = ({ item }: { item: CashTransaction }) => (
       ]}
     >
       {(item.type === 'expense' || item.type === 'withdrawal') ? '-' : '+'}
-      ${item.amount.toFixed(2)}
+      ${item.amount.toLocaleString('es-ES')}
     </Text>
     
     {/* Add delete button for non-sale transactions */}
@@ -271,7 +282,7 @@ const renderTransactionItem = ({ item }: { item: CashTransaction }) => (
               !isCustomDate && [styles.activeDateText, { color: theme.surface }]
             ]}
           >
-            {i18n.t('common.today')}
+            Hoy
           </Text>
         </TouchableOpacity>
         
@@ -297,7 +308,7 @@ const renderTransactionItem = ({ item }: { item: CashTransaction }) => (
           >
             {isCustomDate 
               ? format(filterDate, 'dd/MM/yyyy', { locale: es })
-              : i18n.t('common.selectDate')
+              : 'Seleccionar fecha'
             }
           </Text>
         </TouchableOpacity>
@@ -317,13 +328,13 @@ const renderTransactionItem = ({ item }: { item: CashTransaction }) => (
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={[styles.balanceCard, { backgroundColor: theme.surface }]}>
-        <Text style={[styles.balanceLabel, { color: theme.textLight }]}>{i18n.t('cash.currentBalance')}</Text>
-        <Text style={[styles.balanceAmount, { color: theme.text }]}>${currentBalance.toFixed(2)}</Text>
+        <Text style={[styles.balanceLabel, { color: theme.textLight }]}>Saldo actual</Text>
+        <Text style={[styles.balanceAmount, { color: theme.text }]}>${currentBalance.toLocaleString('es-ES')}</Text>
         <TouchableOpacity
           style={styles.reportButton}
           onPress={() => router.push('/caja/reporte')}
         >
-          <Text style={[styles.reportButtonText, { color: theme.primary }]}>{i18n.t('cash.reports')}</Text>
+          <Text style={[styles.reportButtonText, { color: theme.primary }]}>Reportes</Text>
           <Ionicons name="chevron-forward" size={16} color={theme.primary} />
         </TouchableOpacity>
       </View>
@@ -332,8 +343,8 @@ const renderTransactionItem = ({ item }: { item: CashTransaction }) => (
         <View style={styles.transactionsHeader}>
           <Text style={[styles.transactionsTitle, { color: theme.text }]}>
             {isCustomDate 
-              ? i18n.t('cash.dateTransactions') 
-              : i18n.t('cash.todayTransactions')
+              ? 'Transacciones de la fecha' 
+              : 'Transacciones de hoy'
             }
           </Text>
           <View style={styles.headerButtons}>
@@ -369,48 +380,25 @@ const renderTransactionItem = ({ item }: { item: CashTransaction }) => (
           ListEmptyComponent={
             <Text style={[styles.emptyText, { color: theme.textLight }]}>
               {isCustomDate 
-                ? i18n.t('cash.emptyDateTransactions') 
-                : i18n.t('cash.emptyTransactions')
+                ? 'No hay transacciones registradas para esta fecha' 
+                : 'No hay transacciones registradas hoy'
               }
             </Text>
           }
         />
       </View>
 
-      <View style={styles.actionButtonsContainer}>
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: theme.primary }]}
-          onPress={() => {
-            setTransactionType('deposit');
-            setModalVisible(true);
-          }}
-        >
-          <Ionicons name="arrow-down" size={24} color={theme.surface} />
-          <Text style={[styles.actionButtonText, { color: theme.surface }]}>{i18n.t('cash.deposit')}</Text>
-        </TouchableOpacity>
+       {/* Botón flotante para agregar gasto */}
+       <TouchableOpacity
+        style={[styles.fab, { backgroundColor: theme.error }]}
+        onPress={() => {
+          setTransactionType('expense');
+          setModalVisible(true);
+        }}
+      >
+        <Ionicons name="wallet" size={28} color={theme.surface} />
+      </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: theme.warning }]}
-          onPress={() => {
-            setTransactionType('withdrawal');
-            setModalVisible(true);
-          }}
-        >
-          <Ionicons name="arrow-up" size={24} color={theme.surface} />
-          <Text style={[styles.actionButtonText, { color: theme.surface }]}>{i18n.t('cash.withdrawal')}</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: theme.error }]}
-          onPress={() => {
-            setTransactionType('expense');
-            setModalVisible(true);
-          }}
-        >
-          <Ionicons name="wallet" size={24} color={theme.surface} />
-          <Text style={[styles.actionButtonText, { color: theme.surface }]}>{i18n.t('cash.expense')}</Text>
-        </TouchableOpacity>
-      </View>
 
       <Modal
         animationType="slide"
@@ -444,7 +432,7 @@ const renderTransactionItem = ({ item }: { item: CashTransaction }) => (
                 value={amount}
                 onChangeText={setAmount}
                 keyboardType="numeric"
-                placeholder="0.00"
+                placeholder="0"
                 placeholderTextColor={theme.textLight}
               />
             </View>
@@ -706,5 +694,20 @@ const styles = StyleSheet.create({
   deleteButton: {
     padding: 8,
     marginLeft: 8,
+  },
+  fab: {
+    position: 'absolute',
+    right: 24,
+    bottom: 24,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
 });

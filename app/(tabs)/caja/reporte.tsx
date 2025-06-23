@@ -36,6 +36,8 @@ export default function CashReportScreen() {
   const [endDate, setEndDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [datePickerType, setDatePickerType] = useState<'start' | 'end'>('start');
+  const [salesDetails, setSalesDetails] = useState<any[]>([]);
+  const [expensesDetails, setExpensesDetails] = useState<any[]>([]);
 
   useEffect(() => {
     loadReportData();
@@ -76,6 +78,25 @@ export default function CashReportScreen() {
         startDateObj,
         endDateObj,
       );
+
+      setSalesDetails(
+        sales.map(sale => ({
+          date: sale.date,
+          amount: sale.total_amount,
+          items: sale.items,
+          description: sale.notes || ''
+        }))
+      );
+      setExpensesDetails(
+        transactions
+          .filter(t => t.type === 'expense')
+          .map(exp => ({
+            date: exp.date,
+            amount: exp.amount,
+            description: exp.description || 'Gasto'
+          }))
+      );
+
       
       // Calcular totales
       let salesTotal = 0;
@@ -147,7 +168,77 @@ export default function CashReportScreen() {
   const handleExportReport = async () => {
     try {
       const dateRange = getDateRangeText();
-      
+
+      // Generar tabla de ventas
+      const salesTable = salesDetails.length === 0
+        ? '<div class="item-row"><span>No hay ventas en este periodo.</span></div>'
+        : salesDetails.map(sale => `
+          <div class="sale-block">
+            <div class="sale-header">
+              <span class="sale-date">${format(sale.date, 'dd/MM/yyyy HH:mm', { locale: es })}</span>
+              <span class="sale-amount">$${sale.amount.toLocaleString('es-ES')}</span>
+            </div>
+            ${sale.description ? `<div class="sale-desc">${sale.description}</div>` : ''}
+            ${sale.items && sale.items.length > 0 ? `
+              <table class="items-table">
+                <thead>
+                  <tr>
+                    <th>Producto</th>
+                    <th>Cant.</th>
+                    <th>P. Unit.</th>
+                    <th>Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${sale.items.map((item: any) => `
+                    <tr>
+                      <td>${item.productName}</td>
+                      <td style="text-align:center;">x${item.quantity}</td>
+                      <td style="text-align:center;">$${item.unitPrice.toLocaleString('es-ES')}</td>
+                      <td style="text-align:center;">$${item.subtotal.toLocaleString('es-ES')}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            ` : ''}
+          </div>
+        `).join('');
+
+      // Generar tabla de gastos
+      const expensesTable = expensesDetails.length === 0
+        ? '<div class="item-row"><span>No hay gastos en este periodo.</span></div>'
+        : expensesDetails.map(exp => `
+          <div class="expense-block">
+            <div class="expense-header">
+              <span class="expense-date">${format(exp.date, 'dd/MM/yyyy HH:mm', { locale: es })}</span>
+              <span class="expense-amount" style="color:#D32F2F;">-$${exp.amount.toLocaleString('es-ES')}</span>
+            </div>
+            ${exp.description ? `<div class="expense-desc">${exp.description}</div>` : ''}
+            ${exp.items && exp.items.length > 0 ? `
+              <table class="items-table">
+                <thead>
+                  <tr>
+                    <th>Detalle</th>
+                    <th>Cant.</th>
+                    <th>P. Unit.</th>
+                    <th>Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${exp.items.map((item: any) => `
+                    <tr>
+                      <td>${item.detail}</td>
+                      <td style="text-align:center;">x${item.quantity}</td>
+                      <td style="text-align:center;">$${item.unitPrice}</td>
+                      <td style="text-align:center;">$${item.subtotal}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            ` : ''}
+          </div>
+        `).join('');
+
       const html = `
         <html>
           <head>
@@ -162,6 +253,14 @@ export default function CashReportScreen() {
               .item { margin-bottom: 10px; }
               .item-row { display: flex; justify-content: space-between; }
               .total { border-top: 2px solid #ddd; padding-top: 10px; font-weight: bold; }
+              .sale-block, .expense-block { margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid #A5B4FC; }
+              .sale-header, .expense-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+              .sale-date, .expense-date { font-weight: bold; color: #5B6EE1; font-size: 15px; }
+              .sale-amount, .expense-amount { font-weight: bold; color: #212121; font-size: 16px; }
+              .sale-desc, .expense-desc { color: #757575; margin-bottom: 6px; }
+              .items-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+              .items-table th, .items-table td { border: 1px solid #E0E0E0; padding: 4px 6px; font-size: 13px; }
+              .items-table th { background: #F3F4FB; font-weight: bold; }
             </style>
           </head>
           <body>
@@ -175,13 +274,13 @@ export default function CashReportScreen() {
               <div class="item">
                 <div class="item-row">
                   <span>Saldo Actual:</span>
-                  <span>$${currentBalance.toFixed(2)}</span>
+                  <span>$${currentBalance.toLocaleString('es-ES')}</span>
                 </div>
               </div>
               <div class="item">
                 <div class="item-row">
                   <span>Ingresos Netos:</span>
-                  <span>$${netIncome.toFixed(2)}</span>
+                  <span>$${netIncome.toLocaleString('es-ES')}</span>
                 </div>
               </div>
               <div class="item">
@@ -197,37 +296,42 @@ export default function CashReportScreen() {
               <div class="item">
                 <div class="item-row">
                   <span>Total Ventas:</span>
-                  <span>$${totalSales.toFixed(2)}</span>
+                  <span>$${totalSales.toLocaleString('es-ES')}</span>
                 </div>
               </div>
               <div class="item">
                 <div class="item-row">
                   <span>Total Gastos:</span>
-                  <span>-$${totalExpenses.toFixed(2)}</span>
+                  <span>-$${totalExpenses.toLocaleString('es-ES')}</span>
                 </div>
               </div>
               <div class="item">
                 <div class="item-row">
                   <span>Total Depósitos:</span>
-                  <span>$${totalDeposits.toFixed(2)}</span>
+                  <span>$${totalDeposits.toLocaleString('es-ES')}</span>
                 </div>
               </div>
               <div class="item">
                 <div class="item-row">
                   <span>Total Retiros:</span>
-                  <span>-$${totalWithdrawals.toFixed(2)}</span>
+                  <span>-$${totalWithdrawals.toLocaleString('es-ES')}</span>
                 </div>
               </div>
               <div class="item total">
                 <div class="item-row">
                   <span>Balance Neto:</span>
-                  <span>$${netIncome.toFixed(2)}</span>
+                  <span>$${netIncome.toLocaleString('es-ES')}</span>
                 </div>
               </div>
             </div>
 
-            <div style="text-align: center; color: #666; margin-top: 40px;">
-              Generado el ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: es })}
+            <div class="section">
+              <div class="section-title">Detalle de Ventas</div>
+              ${salesTable}
+            </div>
+            <div class="section">
+              <div class="section-title">Detalle de Gastos</div>
+              ${expensesTable}
             </div>
           </body>
         </html>
@@ -259,7 +363,7 @@ export default function CashReportScreen() {
     
     switch (period) {
       case 'today':
-        return `${i18n.t('common.today')}, ${formatDate(endDateObj)}`;
+        return `${formatDate(endDateObj)}`;
       case 'week':
         startDateObj = subDays(endDateObj, 7);
         return `${formatDate(startDateObj)} - ${formatDate(endDateObj)}`;
@@ -404,7 +508,7 @@ export default function CashReportScreen() {
           </View>
           <View style={styles.summaryInfo}>
             <Text style={[styles.summaryLabel, { color: theme.textLight }]}>{i18n.t('cash.currentBalance')}</Text>
-            <Text style={[styles.summaryValue, { color: theme.text }]}>${currentBalance.toFixed(2)}</Text>
+            <Text style={[styles.summaryValue, { color: theme.text }]}>${currentBalance.toLocaleString('es-ES')}</Text>
           </View>
         </View>
         
@@ -417,7 +521,7 @@ export default function CashReportScreen() {
             <Text style={[styles.summaryValue, { 
               color: netIncome >= 0 ? theme.success : theme.error 
             }]}>
-              ${netIncome.toFixed(2)}
+              ${netIncome.toLocaleString('es-ES')}
             </Text>
           </View>
         </View>
@@ -433,6 +537,117 @@ export default function CashReportScreen() {
         </View>
       </View>
 
+            {/* Detalle de Ventas */}
+            <View style={[styles.card, { backgroundColor: theme.surface }]}>
+        <Text style={[styles.cardTitle, { color: theme.text, borderBottomColor: theme.background }]}>
+          Detalle de Ventas
+        </Text>
+        {salesDetails.length === 0 ? (
+          <Text style={{ color: theme.textLight }}>No hay ventas en este periodo.</Text>
+        ) : (
+          salesDetails.map((sale, idx) => (
+            <View
+              key={idx}
+              style={{
+                marginBottom: 18,
+                paddingBottom: 12,
+                borderBottomWidth: 1,
+                borderBottomColor: theme.primaryLight,
+              }}
+            >
+              {/* Cabecera de la venta */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <Text style={{ fontWeight: 'bold', color: theme.primary, fontSize: 15 }}>
+                  {format(sale.date, 'dd/MM/yyyy HH:mm', { locale: es })}
+                </Text>
+                <Text style={{ fontWeight: 'bold', color: theme.text, fontSize: 16 }}>
+                  ${sale.amount.toLocaleString('es-ES')}
+                </Text>
+              </View>
+              {/* Descripción si existe */}
+              {sale.description ? (
+                <Text style={{ color: theme.textLight, marginBottom: 6 }}>{sale.description}</Text>
+              ) : null}
+              {/* Tabla de items */}
+              {sale.items && sale.items.length > 0 && (
+                <View style={{ marginTop: 4, marginLeft: 2 }}>
+                  <View style={{ flexDirection: 'row', marginBottom: 2 }}>
+                    <Text style={{ flex: 2, fontWeight: 'bold', color: theme.text }}>Producto</Text>
+                    <Text style={{ flex: 1, fontWeight: 'bold', color: theme.text, textAlign: 'center' }}>Cant.</Text>
+                    <Text style={{ flex: 1, fontWeight: 'bold', color: theme.text, textAlign: 'center' }}>P. Unit.</Text>
+                    <Text style={{ flex: 1, fontWeight: 'bold', color: theme.text, textAlign: 'center' }}>Subtotal</Text>
+                  </View>
+                  {sale.items.map((item: { productName: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; quantity: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; unitPrice: number; subtotal: number; }, itemIdx: React.Key | null | undefined) => (
+                    <View key={itemIdx} style={{ flexDirection: 'row', marginBottom: 1 }}>
+                      <Text style={{ flex: 2, color: theme.text }}>{item.productName}</Text>
+                      <Text style={{ flex: 1, color: theme.text, textAlign: 'center' }}>x{item.quantity}</Text>
+                      <Text style={{ flex: 1, color: theme.text, textAlign: 'center' }}>${item.unitPrice.toLocaleString('es-ES')}</Text>
+                      <Text style={{ flex: 1, color: theme.text, textAlign: 'center' }}>${item.subtotal.toLocaleString('es-ES')}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          ))
+        )}
+      </View>
+
+      {/* Detalle de Gastos */}
+      <View style={[styles.card, { backgroundColor: theme.surface }]}>
+        <Text style={[styles.cardTitle, { color: theme.text, borderBottomColor: theme.background }]}>
+          Detalle de Gastos
+        </Text>
+        {expensesDetails.length === 0 ? (
+          <Text style={{ color: theme.textLight }}>No hay gastos en este periodo.</Text>
+        ) : (
+          expensesDetails.map((exp, idx) => (
+            <View
+              key={idx}
+              style={{
+                marginBottom: 18,
+                paddingBottom: 12,
+                borderBottomWidth: 1,
+                borderBottomColor: theme.primaryLight,
+              }}
+            >
+              {/* Cabecera del gasto */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <Text style={{ fontWeight: 'bold', color: theme.error, fontSize: 15 }}>
+                  {format(exp.date, 'dd/MM/yyyy HH:mm', { locale: es })}
+                </Text>
+                <Text style={{ fontWeight: 'bold', color: theme.text, fontSize: 16 }}>
+                  -${exp.amount.toLocaleString('es-ES')}
+                </Text>
+              </View>
+              {/* Descripción si existe */}
+              {exp.description ? (
+                <Text style={{ color: theme.textLight, marginBottom: 6 }}>{exp.description}</Text>
+              ) : null}
+              {/* Tabla de items si existieran */}
+              {exp.items && exp.items.length > 0 && (
+                <View style={{ marginTop: 4, marginLeft: 2 }}>
+                  <View style={{ flexDirection: 'row', marginBottom: 2 }}>
+                    <Text style={{ flex: 2, fontWeight: 'bold', color: theme.text }}>Detalle</Text>
+                    <Text style={{ flex: 1, fontWeight: 'bold', color: theme.text, textAlign: 'center' }}>Cant.</Text>
+                    <Text style={{ flex: 1, fontWeight: 'bold', color: theme.text, textAlign: 'center' }}>P. Unit.</Text>
+                    <Text style={{ flex: 1, fontWeight: 'bold', color: theme.text, textAlign: 'center' }}>Subtotal</Text>
+                  </View>
+                  {exp.items.map((item: { detail: string; quantity: number; unitPrice: number; subtotal: number }, itemIdx: number) => (
+                    <View key={itemIdx} style={{ flexDirection: 'row', marginBottom: 1 }}>
+                      <Text style={{ flex: 2, color: theme.text }}>{item.detail}</Text>
+                      <Text style={{ flex: 1, color: theme.text, textAlign: 'center' }}>x{item.quantity}</Text>
+                      <Text style={{ flex: 1, color: theme.text, textAlign: 'center' }}>${item.unitPrice}</Text>
+                      <Text style={{ flex: 1, color: theme.text, textAlign: 'center' }}>${item.subtotal}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          ))
+        )}
+      </View>
+
+
       <View style={[styles.card, { backgroundColor: theme.surface }]}>
         <Text style={[styles.cardTitle, { 
           color: theme.text,
@@ -441,22 +656,22 @@ export default function CashReportScreen() {
         
         <View style={[styles.detailItem, { borderBottomColor: theme.background }]}>
           <Text style={[styles.detailLabel, { color: theme.text }]}>{i18n.t('statistics.totalSale')}</Text>
-          <Text style={[styles.detailValue, { color: theme.text }]}>${totalSales.toFixed(2)}</Text>
+          <Text style={[styles.detailValue, { color: theme.text }]}>${totalSales.toLocaleString('es-ES')}</Text>
         </View>
         
         <View style={[styles.detailItem, { borderBottomColor: theme.background }]}>
           <Text style={[styles.detailLabel, { color: theme.text }]}>{i18n.t('statistics.totalExpenses')}</Text>
-          <Text style={[styles.detailValue, { color: theme.text }]}>-${totalExpenses.toFixed(2)}</Text>
+          <Text style={[styles.detailValue, { color: theme.text }]}>-${totalExpenses.toLocaleString('es-ES')}</Text>
         </View>
         
         <View style={[styles.detailItem, { borderBottomColor: theme.background }]}>
           <Text style={[styles.detailLabel, { color: theme.text }]}>{i18n.t('cash.deposit')}</Text>
-          <Text style={[styles.detailValue, { color: theme.text }]}>${totalDeposits.toFixed(2)}</Text>
+          <Text style={[styles.detailValue, { color: theme.text }]}>${totalDeposits.toLocaleString('es-ES')}</Text>
         </View>
         
         <View style={[styles.detailItem, { borderBottomColor: theme.background }]}>
           <Text style={[styles.detailLabel, { color: theme.text }]}>{i18n.t('cash.withdrawal')}</Text>
-          <Text style={[styles.detailValue, { color: theme.text }]}>-${totalWithdrawals.toFixed(2)}</Text>
+          <Text style={[styles.detailValue, { color: theme.text }]}>-${totalWithdrawals.toLocaleString('es-ES')}</Text>
         </View>
         
         <View style={[styles.detailItem, styles.totalItem, { 
@@ -466,7 +681,7 @@ export default function CashReportScreen() {
           <Text style={[styles.totalValue, { 
             color: netIncome >= 0 ? theme.success : theme.error 
           }]}>
-            ${netIncome.toFixed(2)}
+            ${netIncome.toLocaleString('es-ES')}
           </Text>
         </View>
       </View>

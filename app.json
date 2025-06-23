@@ -7,9 +7,9 @@
     "icon": "./assets/images/logo_gestion.png",
     "scheme": "myapp",
     "splash": {
-      "image": "./assets/images/logo_gestion.png",
+      "image": "./assets/images/logo_gestion_splash.png",
       "resizeMode": "cover",
-      "backgroundColor": "#91b578"
+      "backgroundColor": "#f4f4fc"
     },
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -21,7 +21,7 @@
       "enableShrinkResources": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/logo_gestion.png",
-        "backgroundColor": "#ffffff",
+        "backgroundColor": "#f4f4fc",
         "resizeMode": "contain"
       },
       "package": "com.ignacioivan00.puntoecogestion"

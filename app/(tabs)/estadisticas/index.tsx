@@ -288,17 +288,19 @@ export default function StatisticsScreen() {
       filteredSales.forEach((sale: { items: any[]; }) => {
         
         if (sale.items && sale.items.length > 0) {
+          console.log(sale);
           sale.items.forEach(item => {
             const product = productsMap[item.productId];
             
             if (product) {
               // Ensure all values are valid numbers before calculation
-              const itemPrice = Number(item.unitPrice) || 0;
-              const costPrice = Number(product.costPrice) || 0;
+              const itemPrice = Number(product.selling_price) || 0;
+              const costPrice = Number(product.cost_price) || 0;
               const quantity = Number(item.quantity) || 0;
               
               // Calculate profit for this item: (selling price - cost price) * quantity
               const itemProfit = (itemPrice - costPrice) * quantity;
+              console.log("Ganancia de producto: ", product.name, "es de: ", itemProfit);
               
               actualProfit += isNaN(itemProfit) ? 0 : itemProfit;
             }
@@ -306,6 +308,7 @@ export default function StatisticsScreen() {
         }
       });
       
+      console.log("Ganancia actual: ", actualProfit);
       // Update statistics with financial data
       statistics.totalIncome = isNaN(financialStats.totalIncome) ? 0 : Number(financialStats.totalIncome);
       statistics.totalExpenses = isNaN(financialStats.totalExpenses) ? 0 : Number(financialStats.totalExpenses);
@@ -314,9 +317,8 @@ export default function StatisticsScreen() {
 
       // Use actual calculated profit instead of percentage estimate
       // Ensure we're storing a valid number
-      actualProfit = actualProfit - statistics.totalExpenses;
-      statistics.totalProfit = isNaN(actualProfit) ? 0 : Number(actualProfit.toFixed(2));
-      
+      statistics.totalProfit = isNaN(actualProfit) ? 0 : Number(actualProfit);
+      console.log("Ganancia total:" , statistics.totalProfit);
       
       setStats(statistics);
     } catch (error) {
@@ -683,21 +685,21 @@ export default function StatisticsScreen() {
 
         <View style={[styles.statCard, { backgroundColor: theme.surface }]}>
           <Text style={[styles.statValue, { color: theme.text }]}>
-            ${stats.potentialProfit.toFixed(2)}
+            ${stats.potentialProfit.toLocaleString('es-ES')}
           </Text>
           <Text style={[styles.statLabel, { color: theme.textLight }]}>{i18n.t('statistics.potentialProfit')}</Text>
         </View>
 
         <View style={[styles.statCard, { backgroundColor: theme.surface }]}>
           <Text style={[styles.statValue, { color: theme.text }]}>
-            ${stats.investedMoney.toFixed(2)}
+            ${stats.investedMoney.toLocaleString('es-ES')}
           </Text>
           <Text style={[styles.statLabel, { color: theme.textLight }]}>{i18n.t('statistics.investedMoney')}</Text>
         </View>
 
         <View style={[styles.statCard, { backgroundColor: theme.surface }]}>
           <Text style={[styles.statValue, { color: theme.text }]}>
-            ${stats.potentialIncome.toFixed(2)}
+            ${stats.potentialIncome.toLocaleString('es-ES')}
           </Text>
           <Text style={[styles.statLabel, { color: theme.textLight }]}>{i18n.t('statistics.potentialIncome')}</Text>
         </View>
@@ -765,16 +767,16 @@ export default function StatisticsScreen() {
           <View style={[styles.legendContainer, { backgroundColor: theme.background }]}>
             <View style={[styles.legendItem, { borderBottomColor: theme.border }]}>
               <Text style={[styles.legendLabel, { color: theme.text }]}>{i18n.t('statistics.totalCost')}:</Text>
-              <Text style={[styles.legendValue, { color: theme.text }]}>${stats.investedMoney.toFixed(2)}</Text>
+              <Text style={[styles.legendValue, { color: theme.text }]}>${stats.investedMoney.toLocaleString('es-ES')}</Text>
             </View>
             <View style={[styles.legendItem, { borderBottomColor: theme.border }]}>
               <Text style={[styles.legendLabel, { color: theme.text }]}>{i18n.t('statistics.totalSale')}:</Text>
-              <Text style={[styles.legendValue, { color: theme.text }]}>${stats.potentialIncome.toFixed(2)}</Text>
+              <Text style={[styles.legendValue, { color: theme.text }]}>${stats.potentialIncome.toLocaleString('es-ES')}</Text>
             </View>
             <View style={[styles.legendItem, { borderBottomColor: theme.border }]}>
               <Text style={[styles.legendLabel, { color: theme.text }]}>{i18n.t('statistics.expectedProfit')}:</Text>
               <Text style={[styles.legendValue, { color: theme.success }]}>
-                ${stats.potentialProfit.toFixed(2)}
+                ${stats.potentialProfit.toLocaleString('es-ES')}
               </Text>
             </View>
           </View>
@@ -818,13 +820,13 @@ export default function StatisticsScreen() {
             <View style={[styles.legendItem, { borderBottomColor: theme.border }]}>
               <Text style={[styles.legendLabel, { color: theme.text }]}>{i18n.t('statistics.totalIncome')}:</Text>
               <Text style={[styles.legendValue, { color: theme.success }]}>
-                ${stats.totalIncome.toFixed(2)}
+                ${stats.totalIncome.toLocaleString('es-ES')}
               </Text>
             </View>
             <View style={[styles.legendItem, { borderBottomColor: theme.border }]}>
               <Text style={[styles.legendLabel, { color: theme.text }]}>{i18n.t('statistics.totalExpenses')}:</Text>
               <Text style={[styles.legendValue, { color: theme.error }]}>
-                -${stats.totalExpenses.toFixed(2)}
+                -${stats.totalExpenses.toLocaleString('es-ES')}
               </Text>
             </View>
             <View style={[styles.legendItem, { borderBottomColor: theme.border }]}>
@@ -832,7 +834,7 @@ export default function StatisticsScreen() {
               <Text style={[styles.legendValue, { 
                 color: stats.netIncome >= 0 ? theme.success : theme.error 
               }]}>
-                ${stats.netIncome.toFixed(2)}
+                ${stats.netIncome.toLocaleString('es-ES')}
               </Text>
             </View>
             <View style={[styles.legendItem, { borderBottomColor: theme.border }]}>
@@ -840,7 +842,7 @@ export default function StatisticsScreen() {
               <Text style={[styles.legendValue, { 
                 color: stats.totalProfit >= 0 ? theme.primary : theme.error 
               }]}>
-                ${stats.totalProfit.toFixed(2)}
+                ${stats.totalProfit.toLocaleString('es-ES')}
               </Text>
             </View>
           </View>

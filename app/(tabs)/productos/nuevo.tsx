@@ -21,6 +21,7 @@ import { Category } from '../../../models/types';
 import i18n from '@/translations';
 import { useIsFocused } from '@react-navigation/native';
 import { useTheme } from '@/contexts/ThemeContext';
+import { set } from 'date-fns';
 
 export default function AddEditProductScreen() {
   const { theme } = useTheme();
@@ -32,9 +33,13 @@ export default function AddEditProductScreen() {
   const [costPrice, setCostPrice] = useState<string>('0');
   const [sellingPrice, setSellingPrice] = useState<string>('0');
   const [profitMargin, setProfitMargin] = useState<string>('0');
+  const [cantidadPorCaja, setCantidadPorCaja] = useState<string>('0');
+  const [cantidadPorBolsa, setCantidadPorBolsa] = useState<string>('');
+  const [unitPrice, setUnitPrice] = useState<string>('0');
+  const [units, setUnits] = useState<string>('0');
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [lowStockThreshold, setLowStockThreshold] = useState<string>('5');
+  const [lowStockThreshold, setLowStockThreshold] = useState<string>('2');
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -58,6 +63,7 @@ export default function AddEditProductScreen() {
     setName('');
     setQuantity('0');
     setCostPrice('0');
+    setUnitPrice('0');
     setSellingPrice('0');
     setProfitMargin('0');
     setIsEditing(false);
@@ -107,11 +113,14 @@ export default function AddEditProductScreen() {
         setName(product.name);
         setQuantity(product.quantity?.toString() || '0');
         setCostPrice(product.cost_price?.toString() || '0');
+        setUnitPrice(product.unit_price?.toString() || '0');
+        setUnits(product.units?.toString() || '0');
         setSellingPrice(product.selling_price?.toString() || '0');
         setProfitMargin(product.profit_margin?.toString() || '0');
         setSelectedTags(product.tags || []);
         setLowStockThreshold(product.low_stock_threshold?.toString() || '5');
         setSelectedCategory(product.category_id || '');
+        setCantidadPorCaja(product.cantidad_por_caja?.toString() || '0');
       } else {
         Alert.alert('Error', 'No se encontró el producto');
         router.back();
@@ -130,7 +139,6 @@ export default function AddEditProductScreen() {
     const cost = parseFloat(costPrice) || 0;
     const selling = parseFloat(sellingPrice) || 0;
     
-    console.log('Calculating profit margin:', { cost, selling });
     
     if (cost > 0 && selling > 0) {
       // Check if selling price is less than cost price
@@ -139,8 +147,7 @@ export default function AddEditProductScreen() {
       }
       
       const margin = ((selling - cost) / cost) * 100;
-      console.log('Calculated margin:', margin);
-      setProfitMargin(margin.toFixed(2));
+      setProfitMargin(margin.toLocaleString('es-ES'));
     }
   };
 
@@ -208,6 +215,9 @@ export default function AddEditProductScreen() {
         tags: selectedTags,
         low_stock_threshold: parseInt(lowStockThreshold, 10) || 5,
         category_id: selectedCategory || null,
+        cantidad_por_caja: parseInt(cantidadPorCaja, 10) || 0,
+        unit_price: parseFloat(unitPrice) || 0,
+        units: parseInt(units) || 0
       };
       
       let updatedProductId = id;
@@ -219,7 +229,10 @@ export default function AddEditProductScreen() {
             text: 'OK', 
             onPress: () => {
               // Return to products list with the updated product ID as a parameter
-              router.replace(`/productos?updatedProductId=${id}`);
+              router.push({
+                pathname: '/productos',
+                params: { updatedProductId: id }
+              });
             }
           }
         ]);
@@ -243,6 +256,22 @@ export default function AddEditProductScreen() {
       setLoading(false);
     }
   };
+  const calculateBoxesFromUnits = () => {
+    const unidades = parseFloat(units) || 0;
+    const porCaja = parseFloat(cantidadPorCaja) || 1;
+    
+    if (porCaja > 0) {
+      setQuantity(Math.floor(unidades / porCaja).toString());
+    }
+  };
+  
+  const calculateUnitsFromBoxes = () => {
+    const cajas = parseFloat(quantity) || 0;
+    const porCaja = parseFloat(cantidadPorCaja) || 1;
+    
+    setUnits((cajas * porCaja).toString());
+  };
+  
 
   if (initialLoading) {
     return (
@@ -280,7 +309,7 @@ export default function AddEditProductScreen() {
           </View>
           
           <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: theme.text }]}>Cantidad</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Cantidad (Cajas)</Text>
             <TextInput
               style={[styles.input, { 
                 backgroundColor: theme.background, 
@@ -289,12 +318,29 @@ export default function AddEditProductScreen() {
               }]}
               value={quantity}
               onChangeText={setQuantity}
+              onEndEditing={calculateUnitsFromBoxes}
               keyboardType="numeric"
               placeholder="0"
               placeholderTextColor={theme.textLight}
             />
           </View>
-          
+          <View style={styles.formGroup}>
+            <Text style={[styles.label, { color: theme.text }]}>Unidades</Text>
+            <TextInput
+              style={[styles.input, { 
+                backgroundColor: theme.background, 
+                borderColor: theme.primaryLight,
+                color: theme.text
+              }]}
+              value={units}
+              onChangeText={setUnits}
+              onEndEditing={calculateBoxesFromUnits}
+              keyboardType="numeric"
+              placeholder="0"
+              placeholderTextColor={theme.textLight}
+            />
+          </View>
+
           <View style={styles.formGroup}>
             <Text style={[styles.label, { color: theme.text }]}>Precio de costo</Text>
             <TextInput
@@ -319,10 +365,10 @@ export default function AddEditProductScreen() {
           </View>
           
           <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: theme.text }]}>Precio de venta</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Precio por caja</Text>
             <TextInput
-              style={[styles.input, { 
-                backgroundColor: theme.background, 
+              style={[styles.input, {
+                backgroundColor: theme.background,
                 borderColor: theme.primaryLight,
                 color: theme.text
               }]}
@@ -334,12 +380,28 @@ export default function AddEditProductScreen() {
               placeholderTextColor={theme.textLight}
             />
           </View>
+
+          <View style={styles.formGroup}>
+            <Text style={[styles.label, { color: theme.text }]}>Precio por unidad</Text>
+            <TextInput
+              style={[styles.input, {
+                backgroundColor: theme.background,
+                borderColor: theme.primaryLight,
+                color: theme.text
+              }]}
+              value={unitPrice}
+              onChangeText={setUnitPrice}
+              keyboardType="numeric"
+              placeholder="0.00"
+              placeholderTextColor={theme.textLight}
+            />
+          </View>
           
           <View style={styles.formGroup}>
             <Text style={[styles.label, { color: theme.text }]}>Margen de ganancia (%)</Text>
             <TextInput
-              style={[styles.input, { 
-                backgroundColor: theme.background, 
+              style={[styles.input, {
+                backgroundColor: theme.background,
                 borderColor: theme.primaryLight,
                 color: theme.text
               }]}
@@ -350,6 +412,21 @@ export default function AddEditProductScreen() {
               }}
               keyboardType="numeric"
               placeholder="0.00"
+              placeholderTextColor={theme.textLight}
+            />
+          </View>
+          <View>
+            <Text style={[styles.label, { color: theme.text }]}>Cantidad por caja *</Text>
+            <TextInput
+              style={[styles.input, { 
+                backgroundColor: theme.background, 
+                borderColor: theme.primaryLight,
+                color: theme.text
+              }]}
+              value={cantidadPorCaja}
+              onChangeText={text => setCantidadPorCaja(text.replace(/[^0-9]/g, ''))}
+              keyboardType="numeric"
+              placeholder="Ej: 12"
               placeholderTextColor={theme.textLight}
             />
           </View>

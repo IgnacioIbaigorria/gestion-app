@@ -7,10 +7,13 @@ export interface Product {
   cost_price: number;
   selling_price: number;
   quantity: number;
+  units: number; // Nuevo campo para unidades individuales
   profit_margin: number;
+  unit_price: number;
   low_stock_threshold?: number;
   category_id?: string | null;
   tags?: string[]; // This is defined as string[] (array of tag IDs)
+  cantidad_por_caja: number;
 }
 
 export interface Tag {

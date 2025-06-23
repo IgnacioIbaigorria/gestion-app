@@ -12,6 +12,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 // Remove the SupabaseTest component if it was only for initialization testing
 // import SupabaseTest from '../../components/SupabaseTest';
+import { Keyboard } from 'react-native';
 
 export default function DashboardScreen() {
   const [loading, setLoading] = useState<boolean>(true);
@@ -152,24 +153,24 @@ export default function DashboardScreen() {
     >
       <View style={[styles.header, { backgroundColor: theme.primary }]}>
         <View style={styles.businessNameContainer}>
-          <Text style={[styles.headerTitle, { color: theme.surface }]}>
+          <Text style={[styles.headerTitle, { color: '#FFFFFF' }]}>
             {businessName}
           </Text>
           <TouchableOpacity onPress={handleEditBusinessName} style={styles.editButton}>
-            <Ionicons name="pencil" size={18} color={theme.surface} />
+            <Ionicons name="pencil" size={18} color={'#FFFFFF'} />
           </TouchableOpacity>
         </View>
-        <Text style={[styles.headerSubtitle, { color: theme.surface }]}>{i18n.t('dashboard.subtitle')}</Text>
+        <Text style={[styles.headerSubtitle, { color: '#FFFFFF' }]}>{i18n.t('dashboard.subtitle')}</Text>
       </View>
 
       <View style={[styles.balanceCard, { backgroundColor: theme.surface }]}>
         <Text style={[styles.balanceLabel, { color: theme.textLight }]}>{i18n.t('dashboard.currentBalance')}</Text>
-        <Text style={[styles.balanceAmount, { color: theme.text }]}>${currentBalance.toFixed(2)}</Text>
+        <Text style={[styles.balanceAmount, { color: theme.text }]}>${currentBalance.toLocaleString('es-ES')}</Text>
         <TouchableOpacity
           style={styles.viewMoreButton}
           onPress={() => router.push('/caja')}
         >
-          <Text style={[styles.viewMoreButtonText, { color: theme.primary }]}>{i18n.t('dashboard.viewCash')}</Text>
+          <Text style={[styles.viewMoreButtonText, { color: theme.primary }]}>Caja</Text>
           <Ionicons name="chevron-forward" size={16} color={theme.primary} />
         </TouchableOpacity>
       </View>
@@ -207,7 +208,7 @@ export default function DashboardScreen() {
           <View style={[styles.statIconContainer, { backgroundColor: theme.success + '20' }]}>
             <Ionicons name="cart" size={24} color={theme.success} />
           </View>
-          <Text style={[styles.statValue, { color: theme.text }]}>${todaySales.toFixed(2)}</Text>
+          <Text style={[styles.statValue, { color: theme.text }]}>${todaySales.toLocaleString('es-ES')}</Text>
           <Text style={[styles.statLabel, { color: theme.textLight }]}>{i18n.t('dashboard.todaySales')}</Text>
         </TouchableOpacity>
 
@@ -290,13 +291,19 @@ export default function DashboardScreen() {
             <View style={styles.modalButtons}>
               <TouchableOpacity 
                 style={[styles.modalButton, { borderColor: theme.border }]} 
-                onPress={() => setIsEditingName(false)}
+                onPress={() => {
+                  Keyboard.dismiss();
+                  setIsEditingName(false);
+                }}
               >
                 <Text style={{ color: theme.text }}>{i18n.t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 style={[styles.modalButton, { backgroundColor: theme.primary }]} 
-                onPress={handleSaveBusinessName}
+                onPress={() => {
+                  Keyboard.dismiss();
+                  handleSaveBusinessName();
+                }}
               >
                 <Text style={{ color: theme.surface }}>{i18n.t('common.save')}</Text>
               </TouchableOpacity>

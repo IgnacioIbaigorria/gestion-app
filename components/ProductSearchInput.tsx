@@ -7,12 +7,12 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
-  Pressable
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { productService } from '../services/productService';
 import Colors from '../constants/Colors';
 import { Product } from '../models/types';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface ProductSearchInputProps {
   onSelectProduct: (product: Product) => void;
@@ -24,50 +24,53 @@ export default function ProductSearchInput({ onSelectProduct }: ProductSearchInp
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [showResults, setShowResults] = useState<boolean>(false);
+  const { theme } = useTheme();
 
   useEffect(() => {
     loadProducts();
   }, []);
 
+  // Nuevo: debounce para búsqueda
   useEffect(() => {
     if (searchQuery.trim() === '') {
       setFilteredProducts([]);
-    } else {
-      const query = searchQuery.toLowerCase();
-      
-      // Filter products that match the search query
-      const filtered = products.filter(product => 
-        product.name.toLowerCase().includes(query)
-      );
-      
-      // Sort the filtered products:
-      // 1. Products that start with the query come first
-      // 2. Then sort alphabetically within each group
-      const sortedProducts = [...filtered].sort((a, b) => {
-        const aName = a.name.toLowerCase();
-        const bName = b.name.toLowerCase();
-        
-        // Check if product names start with the query
-        const aStartsWithQuery = aName.startsWith(query);
-        const bStartsWithQuery = bName.startsWith(query);
-        
-        // If one starts with query and the other doesn't, prioritize the one that does
-        if (aStartsWithQuery && !bStartsWithQuery) return -1;
-        if (!aStartsWithQuery && bStartsWithQuery) return 1;
-        
-        // If both either start or don't start with the query, sort alphabetically
-        return aName.localeCompare(bName);
-      });
-      
-      setFilteredProducts(sortedProducts);
+      setLoading(false);
+      return;
     }
+  
+    setLoading(true);
+    const handler = setTimeout(() => {
+      const q = searchQuery.toLowerCase();
+  
+      // 1. Filtrar: solo los productos donde alguna palabra empieza con q
+      const filtered = products.filter(product => {
+        return product.name
+          .toLowerCase()
+          .split(/\s+/)                          // separa en palabras
+          .some(word => word.startsWith(q));    // comprueba cada palabra
+      });
+  
+      // 2. (Opcional) ordenar alfabéticamente
+      filtered.sort((a, b) =>
+        a.name.localeCompare(b.name, 'es', { sensitivity: 'base' })
+      );
+  
+      setFilteredProducts(filtered);  // si no hay ninguno, va vacío
+      setLoading(false);
+    }, 350);
+  
+    return () => clearTimeout(handler);
   }, [searchQuery, products]);
-
+    
   const loadProducts = async () => {
     try {
       setLoading(true);
       const productsData = await productService.getAllProducts();
-      setProducts(productsData);
+      // Sort all products alphabetically when loading
+      const sortedProducts = [...productsData].sort((a, b) => 
+        a.name.localeCompare(b.name)
+      );
+      setProducts(sortedProducts);
     } catch (error) {
       console.error('Error al cargar productos:', error);
     } finally {
@@ -83,16 +86,17 @@ export default function ProductSearchInput({ onSelectProduct }: ProductSearchInp
 
   return (
     <View style={styles.container}>
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color={Colors.textLight} style={styles.searchIcon} />
+      <View style={[styles.searchContainer, {backgroundColor: theme.surface}, {borderColor: theme.primaryLight}]}>
+        <Ionicons name="search" size={20} color={theme.textLight} backgroundColor={theme.surface} style={styles.searchIcon} />
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, {color: theme.text}, {backgroundColor: theme.surface}]}
           value={searchQuery}
           onChangeText={(text) => {
             setSearchQuery(text);
             setShowResults(text.trim().length > 0);
           }}
           placeholder="Buscar producto por nombre..."
+          placeholderTextColor={theme.textLight}
           onFocus={() => setShowResults(searchQuery.trim().length > 0)}
         />
         {searchQuery.length > 0 && (
@@ -103,16 +107,16 @@ export default function ProductSearchInput({ onSelectProduct }: ProductSearchInp
               setShowResults(false);
             }}
           >
-            <Ionicons name="close-circle" size={20} color={Colors.textLight} />
+            <Ionicons name="close-circle" size={20} color={theme.textLight} />
           </TouchableOpacity>
         )}
       </View>
 
       {showResults && (
         <View style={styles.dropdownWrapper}>
-          <View style={styles.resultsContainer}>
+          <View style={[styles.resultsContainer, {backgroundColor: theme.surface}, {borderColor: theme.primaryLight}]}>
             {loading ? (
-              <ActivityIndicator size="small" color={Colors.primary} style={styles.loader} />
+              <ActivityIndicator size="small" color={theme.primary} style={styles.loader} />
             ) : filteredProducts.length > 0 ? (
               <ScrollView 
                 style={styles.scrollView}
@@ -124,16 +128,16 @@ export default function ProductSearchInput({ onSelectProduct }: ProductSearchInp
                 {filteredProducts.map((item) => (
                   <TouchableOpacity
                     key={item.id}
-                    style={styles.resultItem}
+                    style={[styles.resultItem, {borderBottomColor: theme.background}]}
                     onPress={() => handleSelectProduct(item)}
                     activeOpacity={0.6}
                   >
-                    <Text style={styles.resultItemName}>{item.name}</Text>
+                    <Text style={[styles.resultItemName, {color: theme.text}]}>{item.name}</Text>
                     <View style={styles.resultItemDetails}>
-                      <Text style={styles.resultItemPrice}>
-                        ${item.selling_price.toFixed(2)}
+                      <Text style={[styles.resultItemPrice, {color: theme.primary}]}>
+                        ${item.selling_price.toLocaleString('es-ES')}
                       </Text>
-                      <Text style={styles.resultItemStock}>
+                      <Text style={[styles.resultItemStock, {color: theme.textLight}]}>
                         Stock: {item.quantity || 0}
                       </Text>
                     </View>
@@ -141,9 +145,12 @@ export default function ProductSearchInput({ onSelectProduct }: ProductSearchInp
                 ))}
               </ScrollView>
             ) : (
-              <Text style={styles.noResultsText}>
-                No se encontraron productos
-              </Text>
+              // Mostrar mensaje solo si NO está cargando y no hay resultados
+              !loading && searchQuery.trim().length >= 1 && (
+                <Text style={[styles.noResultsText, {color: theme.textLight}]}>
+                  No se encontraron productos
+                </Text>
+              )
             )}
           </View>
         </View>
@@ -160,10 +167,8 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.background,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: Colors.primaryLight,
     paddingHorizontal: 12,
     marginBottom: 8, // Add margin when results aren't shown
   },
@@ -174,7 +179,6 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 48,
     fontSize: 16,
-    color: Colors.text,
   },
   clearButton: {
     padding: 4,
@@ -188,10 +192,8 @@ const styles = StyleSheet.create({
     elevation: 1000,
   },
   resultsContainer: {
-    backgroundColor: Colors.surface,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: Colors.primaryLight,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
@@ -208,12 +210,10 @@ const styles = StyleSheet.create({
   resultItem: {
     padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.background,
   },
   resultItemName: {
     fontSize: 16,
     fontWeight: '500',
-    color: Colors.text,
     marginBottom: 4,
   },
   resultItemDetails: {
@@ -222,16 +222,13 @@ const styles = StyleSheet.create({
   },
   resultItemPrice: {
     fontSize: 14,
-    color: Colors.primary,
   },
   resultItemStock: {
     fontSize: 14,
-    color: Colors.textLight,
   },
   noResultsText: {
     padding: 16,
     textAlign: 'center',
-    color: Colors.textLight,
     fontStyle: 'italic',
   },
   loader: {

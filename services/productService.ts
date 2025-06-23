@@ -1,10 +1,14 @@
 import { supabase } from './supabase';
-import { Product } from '../models/types';
+import { Product, Category, Tag } from '../models/types';
 
 const TABLE_NAME = 'products';
 
 // Local cache for products
 let productsCache: Record<string, Product> = {};
+let categoriesCache: Category[] | null = null;
+let tagsCache: Tag[] | null = null;
+let totalCount = 0;
+
 
 // Añade estas funciones de mapeo
 function mapProductToDb(product: Omit<Product, 'id'>) {
@@ -13,11 +17,14 @@ function mapProductToDb(product: Omit<Product, 'id'>) {
     description: product.description,
     cost_price: product.cost_price,
     selling_price: product.selling_price,
+    unit_price: product.unit_price,
+    units: product.units,
     quantity: product.quantity,
     profit_margin: product.profit_margin,
     low_stock_threshold: product.low_stock_threshold,
     category_id: product.category_id,
-    tags: Array.isArray(product.tags) ? product.tags : [] // Ensure tags is always an array
+    tags: Array.isArray(product.tags) ? product.tags : [], // Ensure tags is always an array
+    cantidad_por_caja: product.cantidad_por_caja,
   };
 }
 
@@ -27,12 +34,15 @@ function mapDbToProduct(dbProduct: any): Product {
     name: dbProduct.name,
     description: dbProduct.description,
     cost_price: dbProduct.cost_price,
+    unit_price: dbProduct.unit_price,
+    units: dbProduct.units,
     selling_price: dbProduct.selling_price,
     quantity: dbProduct.quantity,
     profit_margin: dbProduct.profit_margin,
     low_stock_threshold: dbProduct.low_stock_threshold,
     category_id: dbProduct.category_id,
-    tags: Array.isArray(dbProduct.tags) ? dbProduct.tags : [] // Ensure tags is always an array
+    tags: Array.isArray(dbProduct.tags) ? dbProduct.tags : [],
+    cantidad_por_caja: dbProduct.cantidad_por_caja,
   };
 }
 
@@ -71,12 +81,48 @@ export const productService = {
       throw error;
     }
   },
+
+// services/productService.ts
+async getProducts(
+  page: number,
+  limit: number,
+  categoryId?: string | null,
+  search?: string
+): Promise<Product[]> {
+  let query = supabase
+    .from(TABLE_NAME)
+    .select('*')
+    .range((page - 1) * limit, page * limit - 1);
+
+  if (categoryId) {
+    query = query.eq('category_id', categoryId);
+  }
+  
+  if (search && search.trim().length > 0) {
+    const searchTerm = search.trim().toLowerCase();
+    // Buscar productos donde alguna palabra del nombre empiece con el término de búsqueda
+    // Usando una expresión regular que busca el término al inicio de cualquier palabra
+    query = query.or(`name.ilike.${searchTerm}%,name.ilike.% ${searchTerm}%`);
+  }
+  
+  // Ordenar alfabéticamente por nombre
+  query = query.order('name', { ascending: true });
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data ?? [];
+},
+
   
   async getAllProducts(): Promise<Product[]> {
+    if (Object.keys(productsCache).length > 0) {
+      return Object.values(productsCache);
+    }
+    
     try {
       const { data, error } = await supabase
         .from(TABLE_NAME)
-        .select('*')
+        .select('id,name,quantity,selling_price,unit_price,low_stock_threshold,units,category_id') // Solo campos necesarios
         .order('name');
       
       if (error) throw error;
@@ -90,9 +136,12 @@ export const productService = {
   
   async updateProduct(id: string, product: Partial<Product>): Promise<void> {
     try {
+      // Destructure tagObjects to exclude it from the payload sent to Supabase
+      const { tagObjects, ...cleanPayload } = product as any;
+
       const { error } = await supabase
         .from(TABLE_NAME)
-        .update(product)
+        .update(cleanPayload) // Use cleanPayload here
         .eq('id', id);
       
       if (error) throw error;
@@ -333,5 +382,49 @@ export const productService = {
       console.error("Error updating products by category:", error);
       throw error;
     }
+  },
+
+  async updateProductsByIds(
+    productIds: string[],
+    updates: {
+      costPricePercentage?: number;
+      sellingPricePercentage?: number;
+      profitMarginPercentage?: number;
+    }
+  ): Promise<number> {
+    try {
+      const allProducts = await this.getAllProducts();
+      const selectedProducts = allProducts.filter(product => productIds.includes(product.id!));
+      if (selectedProducts.length === 0) return 0;
+  
+      const updatePromises = selectedProducts.map(async (product) => {
+        const updatedProduct: Partial<Product> = {};
+        if (updates.costPricePercentage && product.cost_price) {
+          const percentageMultiplier = 1 + (updates.costPricePercentage / 100);
+          updatedProduct.cost_price = Math.round((product.cost_price * percentageMultiplier) * 100) / 100;
+        }
+        if (updates.profitMarginPercentage && product.profit_margin) {
+          const newProfitMargin = product.profit_margin + updates.profitMarginPercentage;
+          updatedProduct.profit_margin = Math.round(newProfitMargin * 100) / 100;
+        }
+        if (updates.sellingPricePercentage && product.selling_price) {
+          const percentageMultiplier = 1 + (updates.sellingPricePercentage / 100);
+          updatedProduct.selling_price = Math.round((product.selling_price * percentageMultiplier) * 100) / 100;
+        }
+        await this.updateProduct(product.id!, updatedProduct);
+      });
+  
+      await Promise.all(updatePromises);
+      return selectedProducts.length;
+    } catch (error) {
+      console.error("Error updating selected products:", error);
+      throw error;
+    }
+  },
+  async getProductsByIds(ids: string[]): Promise<Product[]> {
+    // Si tienes un caché local, úsalo primero
+    if (Array.isArray(ids) && ids.length === 0) return [];
+    const allProducts = await this.getAllProducts();
+    return allProducts.filter(product => product.id && ids.includes(product.id));
   }
 };
