@@ -145,7 +145,7 @@ export default function ProductItem({ product, onDelete, highlighted, category, 
         { backgroundColor: selected ? theme.primaryLight : theme.surface },
         highlighted && {
           borderWidth: 1,
-          borderColor: theme.primary,
+          borderColor: theme.highlight,
         },
         isLowStock && { 
           borderWidth: 1,
@@ -187,14 +187,6 @@ export default function ProductItem({ product, onDelete, highlighted, category, 
             </Text>
           </View>
           <View style={styles.stockContainer}>
-          {isLowStock && (
-              <Ionicons 
-                name="warning" 
-                size={16} 
-                color={theme.warning} 
-                style={styles.stockWarningIcon} 
-              />
-            )}
             <Text style={[
               styles.stock,
               { color: isLowStock ? theme.warning : theme.textLight },
@@ -202,15 +194,13 @@ export default function ProductItem({ product, onDelete, highlighted, category, 
             ]}>
               Cajas: {product.quantity || 0}
             </Text>
-            {isLowStockUnity && (
               <Text style={[
                 styles.stock,
-                { color: theme.warning },
+                { color: isLowStock ? theme.warning : theme.textLight },
                 isLowStock && { fontWeight: '500' }
               ]}>
                 Unidades: {product.units}
               </Text>
-            )}
           </View>
         </View>
 
@@ -268,6 +258,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 2,
+    height: 128,
   },
   content: {
     flex: 1,
@@ -306,7 +297,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   price: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '500',
   },
   stock: {

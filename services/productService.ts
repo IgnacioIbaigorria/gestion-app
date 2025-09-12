@@ -92,6 +92,7 @@ async getProducts(
   let query = supabase
     .from(TABLE_NAME)
     .select('*')
+    .eq('is_deleted', false)
     .range((page - 1) * limit, page * limit - 1);
 
   if (categoryId) {
@@ -113,16 +114,28 @@ async getProducts(
   return data ?? [];
 },
 
-  
-  async getAllProducts(): Promise<Product[]> {
-    if (Object.keys(productsCache).length > 0) {
-      return Object.values(productsCache);
-    }
-    
+  async getProductsByName(name: string): Promise<Product[]> { 
     try {
       const { data, error } = await supabase
         .from(TABLE_NAME)
-        .select('id,name,quantity,selling_price,unit_price,low_stock_threshold,units,category_id') // Solo campos necesarios
+        .select('*')
+        .ilike('name', `%${name}%`);
+      
+      if (error) throw error;
+      
+      return data as Product[];
+    } catch (error) {
+      console.error("Error al obtener productos por nombre:", error);
+      throw error;
+    }
+  },
+  
+  async getAllProducts(): Promise<Product[]> {    
+    try {
+      const { data, error } = await supabase
+        .from(TABLE_NAME)
+        .select('*')
+        .eq('is_deleted', false)
         .order('name');
       
       if (error) throw error;
@@ -155,9 +168,9 @@ async getProducts(
     try {
       const { error } = await supabase
         .from(TABLE_NAME)
-        .delete()
+        .update({ is_deleted: true })
         .eq('id', id);
-      
+
       if (error) throw error;
     } catch (error) {
       console.error("Error al eliminar producto:", error);
@@ -165,58 +178,38 @@ async getProducts(
     }
   },
   
-  async getProductsByCategory(categoryId: string): Promise<Product[]> {
-    try {
-      const { data, error } = await supabase
-        .from(TABLE_NAME)
-        .select('*')
-        .eq('category_id', categoryId)
-        .order('name');
-      
-      if (error) throw error;
-      
-      return data as Product[];
-    } catch (error) {
-      console.error("Error al obtener productos por categoría:", error);
-      throw error;
+  async getLowStockProducts(
+    page: number,
+    limit: number,
+    categoryId?: string | null,
+    search?: string
+  ): Promise<Product[]> {
+    // Construir la consulta base
+    let query = supabase
+      .from(TABLE_NAME)
+      .select('*')
+      .eq('is_deleted', false)
+      .lt('quantity', 'low_stock_threshold')
+      .order('name', { ascending: true });
+  
+    // Aplicar filtros
+    if (categoryId) {
+      query = query.eq('category_id', categoryId);
     }
+    
+    if (search && search.trim().length > 0) {
+      const searchTerm = search.trim().toLowerCase();
+      query = query.or(`name.ilike.${searchTerm}%,name.ilike.% ${searchTerm}%`);
+    }
+    
+    // Aplicar paginación
+    query = query.range((page - 1) * limit, page * limit - 1);
+  
+    const { data, error } = await query;
+    if (error) throw error;
+    return data ?? [];
   },
   
-  async getProductsByTag(tagId: string): Promise<Product[]> {
-    try {
-      const { data, error } = await supabase
-        .from(TABLE_NAME)
-        .select('*')
-        .contains('tags', [tagId])
-        .order('name');
-      
-      if (error) throw error;
-      
-      return data as Product[];
-    } catch (error) {
-      console.error("Error al obtener productos por etiqueta:", error);
-      throw error;
-    }
-  },
-  
-  async getLowStockProducts(): Promise<Product[]> {
-    try {
-      const { data, error } = await supabase
-        .from(TABLE_NAME)
-        .select('*')
-        .lt('quantity', 'low_stock_threshold')
-        .order('quantity');
-      
-      if (error) throw error;
-      
-      return data as Product[];
-    } catch (error) {
-      console.error("Error al obtener productos con bajo stock:", error);
-      throw error;
-    }
-  },
-  
-  // Add this new function for caching
   // Update this function to properly handle tag arrays
   updateProductInCache(productOrId: Product | string, productData?: Partial<Product>): void {
     if (typeof productOrId === 'string') {

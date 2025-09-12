@@ -154,6 +154,17 @@ export const receiptService = {
                 <span>${i18n.t('receipt.paymentMethod')}:</span>
                 <span>${sale.payment_method}</span>
               </div>
+
+              ${sale.discount > 0 ? `
+              <div class="summary-row">
+                <span>Descuento: ${sale.discount}%</span>
+              </div>
+              ` : ''}
+
+              <div class="summary-row">
+                <span>Método de pago:</span>
+                <span>${sale.payment_method}</span>
+              </div>
               <div class="total">
                 ${i18n.t('receipt.total')}: $${sale.total_amount.toLocaleString('es-ES')}
               </div>

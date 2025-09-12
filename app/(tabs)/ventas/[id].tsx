@@ -10,14 +10,16 @@ import i18n from '../../../translations';
 import { useTheme } from '@/contexts/ThemeContext';
 // Add this import
 import { receiptService } from '../../../services/receiptService';
+import { supabase } from '@/services/supabase';
 
 export default function SaleDetailScreen() {
   const { theme } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [sale, setSale] = useState<Sale | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  // Add printing state
+  const [productsMap, setProductsMap] = useState<Record<string, boolean>>({});
   const [printLoading, setPrintLoading] = useState<boolean>(false);
+  const [subTotal, setSubTotal] = useState<number>(0);
 
   useEffect(() => {
     if (id) {
@@ -25,19 +27,43 @@ export default function SaleDetailScreen() {
     }
   }, [id]);
 
-  const loadSale = async (saleId: string) => {
-    try {
-      setLoading(true);
-      const saleData = await salesService.getSaleById(saleId);
-      setSale(saleData);
-    } catch (error) {
-      Alert.alert(i18n.t('common.error'), i18n.t('sales.detail.errorLoading'));
-      console.error(error);
-      router.back();
-    } finally {
-      setLoading(false);
+const loadSale = async (saleId: string) => {
+  try {
+    setLoading(true);
+    const saleData = await salesService.getSaleById(saleId);
+    setSale(saleData);
+
+    // Calcular subtotal
+    const total = saleData?.items.reduce((acc: number, item: any) => acc + item.subtotal, 0) ?? 0;
+    setSubTotal(total);
+
+    // Obtener los productIds de la venta
+    const productIds = saleData?.items.map((item: any) => item.productId) ?? [];
+
+    // Consultar productos en Supabase
+    const { data: products, error } = await supabase
+      .from('products')
+      .select('id, is_deleted')
+      .in('id', productIds);
+
+    if (error) throw error;
+
+    // Convertir a mapa para lookup rápido
+    const map: Record<string, boolean> = {};
+    for (const product of products ?? []) {
+      map[product.id] = product.is_deleted ?? false;
     }
-  };
+
+    setProductsMap(map);
+
+  } catch (error) {
+    Alert.alert(i18n.t('common.error'), i18n.t('sales.detail.errorLoading'));
+    console.error(error);
+    router.back();
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Add this function to handle printing
   const handlePrintReceipt = async () => {
@@ -94,6 +120,7 @@ export default function SaleDetailScreen() {
     );
   }
 
+
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={[styles.card, { backgroundColor: theme.surface }]}>
@@ -128,15 +155,18 @@ export default function SaleDetailScreen() {
           {sale.items.map((item, index) => (
             <View key={index} style={[styles.itemRow, { borderBottomColor: theme.background }]}>
               <View style={styles.itemInfo}>
-                <Text style={[styles.itemName, { color: theme.text }]}>{item.productName}</Text>
+                <Text style={[styles.itemName, { color: theme.text }]}>
+                  {item.productName} {productsMap[item.productId] ? '[ELIMINADO]' : ''}
+                </Text>
                 <Text style={[styles.itemDetails, { color: theme.textLight }]}>
-                  {item.quantity} x ${item.unitPrice.toLocaleString('es-ES')}
+                  {item.units} x ${item.unitPrice.toLocaleString('es-ES')}
                 </Text>
               </View>
               <Text style={[styles.itemSubtotal, { color: theme.primary }]}>
                 ${item.subtotal.toLocaleString('es-ES')}
               </Text>
             </View>
+            
           ))}
         </View>
 
@@ -152,13 +182,23 @@ export default function SaleDetailScreen() {
           <View style={styles.summaryRow}>
             <Text style={[styles.summaryLabel, { color: theme.text }]}>{i18n.t('sales.detail.totalItems')}:</Text>
             <Text style={[styles.summaryValue, { color: theme.text }]}>
-              {sale.items.reduce((sum, item) => sum + item.quantity, 0)}
+              {sale.items.reduce((sum, item) => sum + item.units, 0)}
             </Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={[styles.summaryLabel, { color: theme.text }]}>{i18n.t('sales.detail.paymentMethod')}:</Text>
             <Text style={[styles.summaryValue, { color: theme.text }]}>{sale.payment_method}</Text>
           </View>
+          <View style={styles.summaryRow}>
+            <Text style={[styles.summaryLabel, { color: theme.text }]}>Subtotal:</Text>
+            <Text style={[styles.summaryValue, { color: theme.text }]}>${(subTotal).toLocaleString('es-ES')}</Text>
+          </View>
+          {sale.discount > 0 && (
+            <View style={styles.summaryRow}>
+              <Text style={[styles.summaryLabel, { color: theme.text }]}>Descuento:</Text>
+              <Text style={[styles.summaryValue, { color: theme.text }]}>-${sale.discount.toLocaleString('es-ES')}% | ${(subTotal * sale.discount) / 100}</Text>
+            </View>
+          )}
           <View style={[styles.summaryRow, styles.totalRow, { borderTopColor: theme.primaryLight }]}>
             <Text style={[styles.totalLabel, { color: theme.text }]}>{i18n.t('sales.detail.total')}:</Text>
             <Text style={[styles.totalValue, { color: theme.primary }]}>
@@ -263,6 +303,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   itemSubtotal: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  itemDiscount: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: 'red',
+  },
+  itemTotal: {
     fontSize: 16,
     fontWeight: 'bold',
   },

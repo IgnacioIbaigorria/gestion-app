@@ -59,14 +59,14 @@ export default function SalesScreen() {
   const handleDeleteSale = (sale: Sale) => {
     Alert.alert(
       i18n.t('common.confirm'),
-      i18n.t('sales.confirmDelete'),
+      '¿Estás seguro que deseas eliminar esta venta? Los productos vendidos serán restaurados.',
       [
         {
           text: i18n.t('common.cancel'),
           style: 'cancel'
         },
         {
-          text: i18n.t('common.delete'),
+          text: 'Confirmar',
           style: 'destructive',
           onPress: async () => {
             try {
@@ -76,9 +76,29 @@ export default function SalesScreen() {
               if (sale.items && sale.items.length > 0) {
                 for (const item of sale.items) {
                   const product = await productService.getProductById(item.productId);
+
                   if (product) {
-                    const newQuantity = (product.quantity || 0) + item.quantity;
-                    await productService.updateProduct(item.productId, { quantity: newQuantity });
+                    const totalUnits = (product.units || 0) + item.units;
+                    const cajaSize = product.cantidad_por_caja || 1;
+                    console.log("Unidades actuales:", product.units);
+                    console.log("Unidades devueltas:", item.units)
+
+                    // Si la cantidad total de unidades alcanza al menos una caja
+                    if (item.units >= cajaSize) {
+                      const extraCajas = Math.floor(item.units / cajaSize);
+                      console.log("Cajas actuales:", product.quantity)
+                      console.log("Cajas devueltas:", extraCajas);
+
+                      await productService.updateProduct(item.productId, {
+                        quantity: product.quantity + extraCajas,
+                        units: totalUnits
+                      });
+                    } else {
+                      // Solo actualizás unidades si no alcanza una caja
+                      await productService.updateProduct(item.productId, {
+                        units: totalUnits
+                      });
+                    }
                   }
                 }
               }

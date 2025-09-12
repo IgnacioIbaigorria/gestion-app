@@ -143,7 +143,7 @@ export default function ProductDetailScreen() {
           </Text>
           <View style={[styles.priceRow, { borderBottomColor: theme.background }]}>
             <Text style={[styles.priceLabel, { color: theme.text }]}>
-              Precio de costo:
+              Precio de costo unitario:
             </Text>
             <Text style={[styles.priceValue, { color: theme.text }]}>
               ${product.cost_price.toLocaleString('es-ES')}
@@ -151,15 +151,7 @@ export default function ProductDetailScreen() {
           </View>
           <View style={[styles.priceRow, { borderBottomColor: theme.background }]}>
             <Text style={[styles.priceLabel, { color: theme.text }]}>
-              Precio por caja:
-            </Text>
-            <Text style={[styles.priceValue, { color: theme.text }]}>
-              ${product.selling_price.toLocaleString('es-ES')}
-            </Text>
-          </View>
-          <View style={[styles.priceRow, { borderBottomColor: theme.background }]}>
-            <Text style={[styles.priceLabel, { color: theme.text }]}>
-              Precio por unidad:
+              Precio de venta unitario:
             </Text>
             <Text style={[styles.priceValue, { color: theme.text }]}>
               ${product.unit_price.toLocaleString('es-ES')}
@@ -167,7 +159,15 @@ export default function ProductDetailScreen() {
           </View>
           <View style={[styles.priceRow, { borderBottomColor: theme.background }]}>
             <Text style={[styles.priceLabel, { color: theme.text }]}>
-              Margen de ganancia por caja:
+              Precio de venta por caja:
+            </Text>
+            <Text style={[styles.priceValue, { color: theme.text }]}>
+              ${product.selling_price.toLocaleString('es-ES')}
+            </Text>
+          </View>
+          <View style={[styles.priceRow, { borderBottomColor: theme.background }]}>
+            <Text style={[styles.priceLabel, { color: theme.text }]}>
+              Margen de ganancia:
             </Text>
             <Text style={[styles.priceValue, styles.margin, { color: theme.success }]}>
               {product.profit_margin.toLocaleString('es-ES')}%
@@ -180,7 +180,7 @@ export default function ProductDetailScreen() {
             color: theme.primary,
             borderBottomColor: theme.primaryLight 
           }]}>
-            {i18n.t('products.detail.inventory')}
+            Inventario
           </Text>
           <View style={[styles.priceRow, { borderBottomColor: theme.background }]}>
             <Text style={[styles.priceLabel, { color: theme.text }]}>
@@ -200,7 +200,7 @@ export default function ProductDetailScreen() {
           </View>
           <View style={[styles.priceRow, { borderBottomColor: theme.background }]}>
             <Text style={[styles.priceLabel, { color: theme.text }]}>
-              {i18n.t('products.lowStockThreshold')}:
+              Stock bajo:
             </Text>
             <Text style={[styles.stockValue, { color: theme.text }]}>
               {product.low_stock_threshold || 1} cajas | {(product.low_stock_threshold || 1) * product.cantidad_por_caja} unidades

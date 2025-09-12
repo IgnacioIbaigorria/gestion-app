@@ -84,7 +84,8 @@ export default function CashReportScreen() {
           date: sale.date,
           amount: sale.total_amount,
           items: sale.items,
-          description: sale.notes || ''
+          description: sale.notes || '',
+          discount: sale.discount
         }))
       );
       setExpensesDetails(
@@ -500,7 +501,7 @@ export default function CashReportScreen() {
         <Text style={[styles.cardTitle, { 
           color: theme.text,
           borderBottomColor: theme.background 
-        }]}>{i18n.t('common.resume')}</Text>
+        }]}>Resumen</Text>
         
         <View style={styles.summaryItem}>
           <View style={[styles.summaryIconContainer, { backgroundColor: theme.primaryLight }]}>
@@ -514,7 +515,7 @@ export default function CashReportScreen() {
         
         <View style={styles.summaryItem}>
           <View style={[styles.summaryIconContainer, { backgroundColor: theme.successLight }]}>
-            <Ionicons name="trending-up" size={24} color={theme.success} />
+            <Ionicons name="trending-up" size={24} color={theme.blueLight} />
           </View>
           <View style={styles.summaryInfo}>
             <Text style={[styles.summaryLabel, { color: theme.textLight }]}>{i18n.t('cash.netIncome')}</Text>
@@ -537,8 +538,8 @@ export default function CashReportScreen() {
         </View>
       </View>
 
-            {/* Detalle de Ventas */}
-            <View style={[styles.card, { backgroundColor: theme.surface }]}>
+      {/* Detalle de Ventas */}
+      <View style={[styles.card, { backgroundColor: theme.surface }]}>
         <Text style={[styles.cardTitle, { color: theme.text, borderBottomColor: theme.background }]}>
           Detalle de Ventas
         </Text>
@@ -585,6 +586,12 @@ export default function CashReportScreen() {
                       <Text style={{ flex: 1, color: theme.text, textAlign: 'center' }}>${item.subtotal.toLocaleString('es-ES')}</Text>
                     </View>
                   ))}
+                </View>
+              )}
+              {sale.discount > 0 && (
+                <View style={{marginVertical: 4, flexDirection: 'row'}}>
+                  <Text style={{ fontWeight: 'bold', color: theme.textLight }}>Descuento:</Text>
+                  <Text style={{ fontWeight: 'bold', color: theme.text }}> -{sale.discount.toLocaleString('es-ES')}%</Text>
                 </View>
               )}
             </View>
@@ -677,7 +684,7 @@ export default function CashReportScreen() {
         <View style={[styles.detailItem, styles.totalItem, { 
           borderTopColor: theme.primaryLight 
         }]}>
-          <Text style={[styles.totalLabel, { color: theme.text }]}>{i18n.t('statistics.netBalance')}</Text>
+          <Text style={[styles.totalLabel, { color: theme.text }]}>Ingresos netos</Text>
           <Text style={[styles.totalValue, { 
             color: netIncome >= 0 ? theme.success : theme.error 
           }]}>

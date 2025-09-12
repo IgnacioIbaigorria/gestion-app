@@ -48,6 +48,8 @@ export default function DashboardScreen() {
   // Then in your loadDashboardData function, update the date handling:
   const loadDashboardData = async () => {
     try {
+
+      
       setLoading(true);
       
       // Obtener datos de productos
@@ -184,7 +186,7 @@ export default function DashboardScreen() {
             <Ionicons name="cube" size={24} color={theme.primary} />
           </View>
           <Text style={[styles.statValue, { color: theme.text }]}>{totalProducts}</Text>
-          <Text style={[styles.statLabel, { color: theme.textLight }]}>{i18n.t('dashboard.products')}</Text>
+          <Text style={[styles.statLabel, { color: theme.textLight }]}>Productos</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -198,7 +200,7 @@ export default function DashboardScreen() {
             <Ionicons name="alert-circle" size={24} color={theme.warning} />
           </View>
           <Text style={[styles.statValue, { color: theme.text }]}>{lowStockCount}</Text>
-          <Text style={[styles.statLabel, { color: theme.textLight }]}>{i18n.t('dashboard.lowStock')}</Text>
+          <Text style={[styles.statLabel, { color: theme.textLight }]}>Stock bajo</Text>
         </TouchableOpacity>
 
         <TouchableOpacity

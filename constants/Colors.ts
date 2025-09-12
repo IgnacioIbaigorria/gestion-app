@@ -8,7 +8,6 @@ const colors = {
   surface: '#FFFFFF',        // Superficie blanca
   text: '#212121', 
   white: '#FFFFFF',          // Texto oscuro
-
   textLight: '#757575',      // Texto claro
   error: '#D32F2F',          // Rojo error
   success: '#1976D2',        // Azul para éxito
@@ -33,10 +32,12 @@ const lightTheme = {
   error: '#D32F2F',
   success: '#1976D2',
   warning: '#FF9800',
+  blueLight: '#1976D2',
   warningLight: '#FFF3E0',
   info: '#1A237E',
   successLight: '#BBDEFB',
   border: '#E0E0E0',
+  highlight: '#61ff59',
 };
 
 const darkTheme = {
@@ -52,11 +53,13 @@ const darkTheme = {
   white: '#FFFFFF',
   error: '#EF5350',
   success: '#1976D2',
+  blueLight: '#181C36',
   warning: '#FFA726',
   warningLight: '#3E2723',
   info: '#3949AB',
   successLight: '#1565C0',
   border: '#232B50',         // Borde azul oscuro
+  highlight: '#61ff59',
 };
 
 export { colors, lightTheme, darkTheme };

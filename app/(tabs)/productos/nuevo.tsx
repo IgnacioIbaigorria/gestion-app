@@ -137,29 +137,40 @@ export default function AddEditProductScreen() {
   // Fix the profit margin calculation
   const calculateProfitMargin = () => {
     const cost = parseFloat(costPrice) || 0;
-    const selling = parseFloat(sellingPrice) || 0;
-    
-    
-    if (cost > 0 && selling > 0) {
-      // Check if selling price is less than cost price
-      if (selling < cost) {
-        Alert.alert('Advertencia', 'El precio de venta es menor que el precio de costo');
+    const unitSellingPrice = parseFloat(unitPrice) || 0; // suponiendo que este es tu input de venta por unidad
+
+    if (cost > 0 && unitSellingPrice > 0) {
+      if (unitSellingPrice < cost) {
+        Alert.alert('Advertencia', 'El precio de venta unitario es menor que el precio de costo');
       }
-      
-      const margin = ((selling - cost) / cost) * 100;
-      setProfitMargin(margin.toLocaleString('es-ES'));
+
+      const margin = ((unitSellingPrice - cost) / cost) * 100;
+      setProfitMargin(margin.toFixed(2));
     }
   };
 
+
   const calculateSellingPrice = () => {
-    const cost = parseFloat(costPrice) || 0;
-    const margin = parseFloat(profitMargin) || 0;
+    const unit = parseFloat(unitPrice) || 0;
+    const cantidadCaja = parseFloat(cantidadPorCaja) || 0;
     
-    if (cost > 0 && margin >= 0) {
-      const selling = cost * (1 + margin / 100);
+    if (unit > 0 && cantidadCaja > 0) {
+      const selling = unit * cantidadCaja;
       setSellingPrice(selling.toFixed(0));
     }
   };
+
+  const calculateUnitPrice = () => {
+    const cost = parseFloat(costPrice) || 0;
+    const margin = parseFloat(profitMargin) || 0;
+    const cantidadCaja = parseInt(cantidadPorCaja) || 0;
+
+    if (cost > 0 && margin >= 0) {
+      const unitPrice = cost * (1 + margin / 100);
+      setUnitPrice(unitPrice.toFixed(2));
+      setSellingPrice((unitPrice * cantidadCaja).toFixed(0));
+    }
+  }
 
   const handleSave = async () => {
     if (!name) {
@@ -271,6 +282,8 @@ export default function AddEditProductScreen() {
     
     setUnits((cajas * porCaja).toString());
   };
+
+
   
 
   if (initialLoading) {
@@ -342,7 +355,7 @@ export default function AddEditProductScreen() {
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: theme.text }]}>Precio de costo</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Precio de costo unitario</Text>
             <TextInput
               style={[styles.input, { 
                 backgroundColor: theme.background, 
@@ -352,9 +365,11 @@ export default function AddEditProductScreen() {
               value={costPrice}
               onChangeText={setCostPrice}
               onEndEditing={() => {
-                if (parseFloat(sellingPrice) > 0) {
+                if (parseFloat(unitPrice) > 0) {
                   calculateProfitMargin();
+                  calculateSellingPrice();
                 } else if (parseFloat(profitMargin) > 0) {
+                  calculateUnitPrice();
                   calculateSellingPrice();
                 }
               }}
@@ -363,26 +378,9 @@ export default function AddEditProductScreen() {
               placeholderTextColor={theme.textLight}
             />
           </View>
-          
-          <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: theme.text }]}>Precio por caja</Text>
-            <TextInput
-              style={[styles.input, {
-                backgroundColor: theme.background,
-                borderColor: theme.primaryLight,
-                color: theme.text
-              }]}
-              value={sellingPrice}
-              onChangeText={setSellingPrice}
-              onEndEditing={calculateProfitMargin}
-              keyboardType="numeric"
-              placeholder="0.00"
-              placeholderTextColor={theme.textLight}
-            />
-          </View>
 
           <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: theme.text }]}>Precio por unidad</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Precio de venta unitario</Text>
             <TextInput
               style={[styles.input, {
                 backgroundColor: theme.background,
@@ -391,11 +389,32 @@ export default function AddEditProductScreen() {
               }]}
               value={unitPrice}
               onChangeText={setUnitPrice}
+              onEndEditing={() => {
+                calculateProfitMargin();
+                calculateSellingPrice();
+              }}
               keyboardType="numeric"
               placeholder="0.00"
               placeholderTextColor={theme.textLight}
             />
           </View>
+          
+          <View style={styles.formGroup}>
+            <Text style={[styles.label, { color: theme.text }]}>Precio de venta por caja</Text>
+            <TextInput
+              style={[styles.input, {
+                backgroundColor: theme.background,
+                borderColor: theme.primaryLight,
+                color: theme.text
+              }]}
+              value={sellingPrice}
+              onChangeText={setSellingPrice}
+              keyboardType="numeric"
+              placeholder="0.00"
+              placeholderTextColor={theme.textLight}
+            />
+          </View>
+
           
           <View style={styles.formGroup}>
             <Text style={[styles.label, { color: theme.text }]}>Margen de ganancia (%)</Text>
@@ -415,8 +434,8 @@ export default function AddEditProductScreen() {
               placeholderTextColor={theme.textLight}
             />
           </View>
-          <View>
-            <Text style={[styles.label, { color: theme.text }]}>Cantidad por caja *</Text>
+          <View style={styles.formGroup}>
+            <Text style={[styles.label, { color: theme.text }]}>Cantidad por caja</Text>
             <TextInput
               style={[styles.input, { 
                 backgroundColor: theme.background, 
@@ -425,6 +444,10 @@ export default function AddEditProductScreen() {
               }]}
               value={cantidadPorCaja}
               onChangeText={text => setCantidadPorCaja(text.replace(/[^0-9]/g, ''))}
+              onEndEditing={() => {
+                calculateSellingPrice();
+                calculateUnitsFromBoxes();
+              }}
               keyboardType="numeric"
               placeholder="Ej: 12"
               placeholderTextColor={theme.textLight}
@@ -446,7 +469,7 @@ export default function AddEditProductScreen() {
                 placeholderTextColor={theme.textLight}
               />
               <Text style={[styles.thresholdHelperText, { color: theme.textLight }]}>
-                Ingresa el valor mínimo de stock para considerar bajo stock.
+                Avisar cuando se tenga una cantidad igual o menor a ésta.
               </Text>
             </View>
           </View>
@@ -584,7 +607,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   formGroup: {
-    marginBottom: 16,
+    marginBottom: 10,
   },
   label: {
     fontSize: 16,
@@ -650,7 +673,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   thresholdHelperText: {
-    fontSize: 12,
+    fontSize: 13,
     marginTop: 4,
     marginLeft: 4,
   },

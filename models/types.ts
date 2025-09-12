@@ -14,6 +14,7 @@ export interface Product {
   category_id?: string | null;
   tags?: string[]; // This is defined as string[] (array of tag IDs)
   cantidad_por_caja: number;
+  is_deleted?: boolean;
 }
 
 export interface Tag {
@@ -36,6 +37,8 @@ export interface SaleItem {
   quantity: number;
   unitPrice: number;
   subtotal: number;
+  units: number;
+  discount: number;
 }
 
 export interface Sale {
@@ -45,6 +48,7 @@ export interface Sale {
   total_amount: number;
   payment_method: string;
   notes?: string;
+  discount: number;
 }
 
 export interface CashTransaction {

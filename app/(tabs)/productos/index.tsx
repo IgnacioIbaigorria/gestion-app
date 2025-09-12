@@ -49,7 +49,9 @@ export default function ProductsScreen() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
-  
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [pendingScrollIndex, setPendingScrollIndex] = useState<number | null>(null);
+
   
   // Infinite scroll
   const LoadingFooter = React.memo(() => {
@@ -96,22 +98,23 @@ export default function ProductsScreen() {
   // Modificar handleLoadMore para ser más agresivo
   const handleLoadMore = useCallback(() => {
     if (!hasMore || isFetchingRef.current || loadingMore) return;
-    
-    console.log('🔄 Activando carga de más productos...');
-    
+        
     // Activar loading ANTES de cualquier operación asíncrona
     setLoadingMore(true);
     isFetchingRef.current = true;
     
+    // Calcular la próxima página basada en la cantidad de productos ya cargados
+    const nextPage = Math.floor(products.length / PAGE_SIZE) + 1;
+    
     // Usar setTimeout para asegurar que el estado se actualice inmediatamente
     setTimeout(() => {
-      loadData(activeFilter, page + 1, false)
+      loadData(activeFilter, nextPage, false)
         .finally(() => {
           isFetchingRef.current = false;
           setLoadingMore(false);
         });
     }, 0);
-  }, [hasMore, activeFilter, page, loadingMore]);
+  }, [hasMore, activeFilter, products.length, loadingMore]);
   
     // Add viewability configuration
   const viewabilityConfig = React.useRef({
@@ -135,7 +138,7 @@ export default function ProductsScreen() {
     }
     
     // Find the index of the product we want to scroll to
-    const productIndex = filteredProducts.findIndex(p => p.id === pendingScroll);
+    const productIndex = products.findIndex(p => p.id === pendingScroll);
     
     if (productIndex !== -1) {
       try {
@@ -145,25 +148,6 @@ export default function ProductsScreen() {
           animated: true
         });
         
-        // Then after a short delay, scroll to the exact index
-        setTimeout(() => {
-          try {
-            flatListRef.current?.scrollToIndex({
-              index: productIndex,
-              animated: true,
-              viewPosition: 0.5 // Position item closer to the top
-            });
-            
-            // Highlight the product temporarily
-            setHighlightedProductId(pendingScroll);
-            setTimeout(() => setHighlightedProductId(null), 8000);
-            
-            // Clear the pending scroll
-            setPendingScroll(null);
-          } catch (error) {
-            console.error("Error in second scroll attempt:", error);
-          }
-        }, 200);
       } catch (error) {
         console.error("Error scrolling to offset:", error);
       }
@@ -171,151 +155,145 @@ export default function ProductsScreen() {
       // If we can't find the product, clear the pending scroll
       setPendingScroll(null);
     }
-  }, [pendingScroll, filteredProducts]);
+  }, [pendingScroll, products]);
 
-  // Replace the previous scroll effect with this improved version
+  useEffect(() => {
+    if (pendingScrollIndex !== null && products.length > 0) {
+      if (pendingScrollIndex < products.length) {
+        setTimeout(() => {
+          scrollToPendingIndex(pendingScrollIndex, pendingScroll || undefined);
+        }, 300); // delay para que FlatList renderice
+      } else {
+        console.warn(`pendingScrollIndex ${pendingScrollIndex} fuera de rango para products.length=${products.length}`);
+        // Opcional: podés recargar más páginas o resetear scroll
+        // setPendingScrollIndex(null);
+      }
+    }
+  }, [pendingScrollIndex, products]);
+
+  const loadUntilIndexById = async (productId: string) => {
+    // Primero intentar obtener el producto directamente
+    try {
+      const product = await productService.getProductById(productId);
+      if (!product) {
+        console.warn('Producto no encontrado');
+        setDataReady(true);
+        return;
+      }
+      
+      // Cargar la primera página
+      const firstPage = await loadData(activeFilter, 1, false);
+      let foundIndex = firstPage?.findIndex(p => p.id === productId) ?? -1;
+      
+      if (foundIndex !== -1) {
+        // Producto encontrado en la primera página
+        setPendingScrollIndex(foundIndex);
+        setPendingScroll(productId);
+        setDataReady(true);
+        return;
+      }
+      
+      // Si no está en la primera página, cargar más páginas con un tamaño mayor
+      const BATCH_SIZE = 3; // Cargar 3 páginas a la vez
+      let currentPage = 2;
+      
+      while (true) {
+        // Cargar varias páginas a la vez
+        const promises = [];
+        for (let i = 0; i < BATCH_SIZE; i++) {
+          promises.push(loadData(activeFilter, currentPage + i, false));
+        }
+        
+        const results = await Promise.all(promises);
+        const newProducts = results.flat().filter(Boolean);
+        
+        if (newProducts.length === 0) {
+          break;
+        }
+        
+        // Combinar y deduplicar
+        const allProducts = [...products, ...newProducts];
+        const deduplicationMap = new Map<string, Product>();
+
+        // Solo agregar productos con ID válido
+        allProducts.forEach(p => {
+          if (p && p.id) {
+            deduplicationMap.set(p.id, p);
+          }
+        });
+
+        const deduplicated = Array.from(deduplicationMap.values());
+        setProducts(deduplicated);
+        
+        foundIndex = deduplicated.findIndex(p => p.id === productId);
+        
+        if (foundIndex !== -1) {
+          setPendingScrollIndex(foundIndex);
+          setPendingScroll(productId);
+          setDataReady(true);
+          setPage(currentPage + BATCH_SIZE - 1);
+          setHasMore(newProducts.length === PAGE_SIZE * BATCH_SIZE);
+          break;
+        }
+        
+        currentPage += BATCH_SIZE;
+      }
+      
+      if (foundIndex === -1) {
+        console.warn('Producto no encontrado después de cargar páginas.');
+        setDataReady(true);
+      }
+    } catch (error) {
+      console.error('Error al cargar producto:', error);
+      setDataReady(true);
+    }
+  };
+
   useEffect(() => {
     if (updatedProductId && dataReady) {
       console.log('🔄 Producto actualizado detectado:', updatedProductId);
-      
-      // Recargar toda la lista desde el principio
+
       setPage(1);
       setHasMore(true);
       setProducts([]);
       setDataReady(false);
       
       // Cargar la primera página
-      loadData(activeFilter, 1, false).then(() => {
-        // Después de cargar la primera página, buscar el producto
-        findAndScrollToProduct(updatedProductId);
+      loadData(activeFilter, 1, false).then(loadedProducts => {
+        const updatedIndex = loadedProducts?.findIndex(p => p.id === updatedProductId) ?? -1;
+        console.log('Índice encontrado del producto:', updatedIndex);
+
+        if (updatedIndex === -1) {
+          // Producto no está en la página 1, cargás páginas hasta encontrarlo
+          loadUntilIndexById(updatedProductId);
+        } else {
+          // Está en la página 1, scroll directo
+          console.log('Índice encontrado en la página:', page);
+          setPendingScrollIndex(updatedIndex);
+          setPendingScroll(updatedProductId);
+        }
       });
       
       // Limpiar el parámetro URL
       router.replace('/productos');
     }
   }, [updatedProductId, dataReady]);
-  
-  // Nueva función para buscar y hacer scroll al producto
-  const findAndScrollToProduct = async (productId: string) => {
-    console.log('🔍 Buscando producto:', productId);
-    
-    let currentPage = 1;
-    let found = false;
-    let allLoadedProducts: Product[] = [];
-    
-    // Buscar el producto cargando páginas hasta encontrarlo
-    while (!found && currentPage <= 10) { // Límite de seguridad
-      try {
-        const productsPage = await productService.getProducts(
-          currentPage,
-          PAGE_SIZE,
-          selectedCategory,
-          searchText
-        );
-        
-        if (productsPage.length === 0) {
-          console.log('❌ No se encontraron más productos');
-          break;
-        }
-        
-        // Enriquecer con tags
-        const productsWithTags = await Promise.all(
-          productsPage.map(async product => {
-            if (!product.id) return product;
-            const productTags = Array.isArray(product.tags) ? product.tags : [];
-            if (productTags.length) {
-              return {
-                ...product,
-                tagObjects: tags.filter(t => productTags.includes(t.id!))
-              };
-            }
-            const fetchedTags = await tagService.getTagsForProduct(product.id);
-            const tagIds = fetchedTags.map(t => t.id!).filter(Boolean);
-            return { ...product, tags: tagIds, tagObjects: fetchedTags };
-          })
-        );
-        
-        allLoadedProducts = [...allLoadedProducts, ...productsWithTags];
-        
-        // Verificar si el producto está en esta página
-        const productIndex = allLoadedProducts.findIndex(p => p.id === productId);
-        
-        if (productIndex !== -1) {
-          console.log('✅ Producto encontrado en índice:', productIndex);
-          found = true;
-          
-          // Actualizar el estado con todos los productos cargados
-          setProducts(allLoadedProducts);
-          setPage(currentPage);
-          setHasMore(productsWithTags.length === PAGE_SIZE);
-          setDataReady(true);
-          
-          // Esperar a que el FlatList se renderice completamente antes del scroll
-          setTimeout(() => {
-            // Primero intentar scroll directo al índice
-            try {
-              flatListRef.current?.scrollToIndex({
-                index: productIndex,
-                animated: true,
-                viewPosition: 0.5 // Centrar en la pantalla
-              });
-              
-              // Resaltar el producto
-              setHighlightedProductId(productId);
-              setTimeout(() => setHighlightedProductId(null), 3000);
-              
-            } catch (error) {
-              console.error('Error haciendo scroll directo:', error);
-              
-              // Fallback: scroll por offset primero, luego al índice
-              const estimatedOffset = productIndex * 100; // Altura aproximada del item
-              flatListRef.current?.scrollToOffset({
-                offset: Math.max(0, estimatedOffset - 200), // Scroll un poco antes
-                animated: false
-              });
-              
-              // Después de un momento, hacer scroll al índice exacto
-              setTimeout(() => {
-                try {
-                  flatListRef.current?.scrollToIndex({
-                    index: productIndex,
-                    animated: true,
-                    viewPosition: 0.5
-                  });
-                  
-                  // Resaltar el producto
-                  setHighlightedProductId(productId);
-                  setTimeout(() => setHighlightedProductId(null), 3000);
-                  
-                } catch (secondError) {
-                  console.error('Error en segundo intento de scroll:', secondError);
-                  // Último fallback: solo resaltar
-                  setHighlightedProductId(productId);
-                  setTimeout(() => setHighlightedProductId(null), 3000);
-                }
-              }, 500);
-            }
-          }, 500); // Aumentar el delay para dar más tiempo al renderizado
-          
-          break;
-        }
-        
-        currentPage++;
-        
-      } catch (error) {
-        console.error('Error cargando página:', currentPage, error);
-        break;
-      }
-    }
-    
-    if (!found) {
-      console.log('❌ Producto no encontrado después de cargar', currentPage - 1, 'páginas');
-      // Si no se encuentra, al menos actualizar la lista
-      setProducts(allLoadedProducts);
-      setDataReady(true);
-    }
+
+  const scrollToPendingIndex = (index: number, productId?: string) => {
+    flatListRef.current?.scrollToIndex({
+      index,
+      animated: true,
+      viewPosition: 0.0
+    });
+    setPendingScrollIndex(null);
+    productId && setHighlightedProductId(productId);
+
+    setTimeout(() => {
+      setHighlightedProductId(null);
+    }, 10000);
   };
-  
+
+    
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -329,19 +307,23 @@ export default function ProductsScreen() {
   }, []);  
   
   useEffect(() => {
+    const initialFilter = filter === 'lowStock' && source === 'dashboard' ? 'lowStock' : 'all';
     setPage(1);
     setHasMore(true);
     setProducts([]);
-    loadData(filter === 'lowStock' && source === 'dashboard' ? 'lowStock' : 'all', 1, false);
+    loadData(initialFilter, 1, false);
   }, [filter, source]);
   
     
   
   useEffect(() => {
-    setPage(1);
-    setHasMore(true);
-    setProducts([]);
-    loadData(activeFilter, 1, false);
+    // Solo resetear si no estamos en modo lowStock, ya que lowStock no usa categorías ni búsqueda
+    if (activeFilter !== 'lowStock') {
+      setPage(1);
+      setHasMore(true);
+      setProducts([]);
+      loadData(activeFilter, 1, false);
+    }
   }, [selectedCategory, searchQuery]);
   
 
@@ -351,8 +333,6 @@ export default function ProductsScreen() {
     isRefresh = false
   ) => {
     try {
-      console.log('Página: ', page);
-      console.log('Categorìa seleccionada:', selectedCategory);
       setActiveFilter(filterType);
   
       // Flags de UI
@@ -364,13 +344,26 @@ export default function ProductsScreen() {
         setLoading(true);
       }
   
-      // Trae sólo esa página, con categoría y texto de búsqueda
-      const productsPage = await productService.getProducts(
-        pg,
-        PAGE_SIZE,
-        selectedCategory,
-        searchQuery
-      );
+      let productsPage: Product[];
+      
+      // Manejar diferentes tipos de filtro
+      if (filterType === 'lowStock') {
+        // Para stock bajo, usar la función específica
+        productsPage = await productService.getLowStockProducts(
+          pg,
+          PAGE_SIZE,
+          selectedCategory,
+          searchQuery
+        );
+      } else {
+        // Para filtros normales, usar getProducts con categoría y búsqueda
+        productsPage = await productService.getProducts(
+          pg,
+          PAGE_SIZE,
+          selectedCategory,
+          searchQuery
+        );
+      }
   
       // Enriquecer con tags (igual que antes)
       const productsWithTags = await Promise.all(
@@ -389,16 +382,29 @@ export default function ProductsScreen() {
           return { ...product, tags: tagIds, tagObjects: fetchedTags };
         })
       );
+
+      const indexedProducts = productsWithTags.map((product, index) => ({
+        ...product,
+        index: (pg - 1) * PAGE_SIZE + index + 1
+      }));
+
   
-      // Append o reset según página
-      setProducts(prev =>
-        pg === 1 ? productsWithTags : [...prev, ...productsWithTags]
-      );
+      // Append o reset según página, con deduplicación
+    setProducts(prev => {
+      if (pg === 1) {
+        return indexedProducts;
+      } else {
+        // Combinar productos previos con nuevos y deduplicar por ID
+        const allProducts = [...prev, ...indexedProducts];
+        return Array.from(new Map(allProducts.map(p => [p.id, p])).values());
+      }
+    });
   
       setHasMore(productsWithTags.length === PAGE_SIZE);
       setPage(pg);
       if (pg === 1) setDataReady(true);
-  
+
+      return indexedProducts;
     } catch (error) {
       console.error(error);
       Alert.alert('Error', 'No se pudieron cargar los productos');
@@ -407,8 +413,7 @@ export default function ProductsScreen() {
       setRefreshing(false);
       setLoadingMore(false);
     }
-  };
-    
+  };    
   
   const loadProducts = () => {
     loadData(activeFilter);
@@ -502,8 +507,9 @@ export default function ProductsScreen() {
   // --- NUEVA FUNCIÓN DE EXPORTACIÓN A PDF ---
   const exportProductsToPDF = async () => {
     // Usa los productos filtrados si hay filtro, si no, todos
-    const list = filteredProducts.length > 0 ? filteredProducts : products;
-
+    const listProducts = await productService.getAllProducts();
+    const filteredListProducts = listProducts.filter(p => p.category_id === selectedCategory || !selectedCategory);
+    const list = filteredListProducts.length > 0 ? filteredListProducts : listProducts;
     // Generar fecha en formato dd/mm/aaaa
     const now = new Date();
     const day = String(now.getDate()).padStart(2, '0');
@@ -672,12 +678,17 @@ export default function ProductsScreen() {
       const isCSV = fileName.toLowerCase().endsWith('.csv');
       const isXLSX = fileName.toLowerCase().endsWith('.xlsx');
 
+      Alert.alert("Es formato CSV:", isCSV.toString());
+      Alert.alert("Es formato XLSX:", isXLSX.toString());
+
       if (!isCSV && !isXLSX) {
         Alert.alert('Error de formato', 'Por favor, selecciona un archivo CSV (.csv) o Excel (.xlsx).');
         return;
       }
 
       setLoading(true);
+      const fetchedAllProducts = await productService.getAllProducts();
+      setAllProducts(fetchedAllProducts);
       console.log('Iniciando importación de archivo:', fileName);
       let csvContent = '';
       try {
@@ -734,7 +745,6 @@ export default function ProductsScreen() {
         setLoading(false);
         return;
       }
-
       const productsToUpdate: Product[] = [];
       const productsToCreate: Product[] = [];
       const categoriesMap = new Map<string, Category>(); // Para cachear categorías ya procesadas
@@ -788,14 +798,15 @@ export default function ProductsScreen() {
           }
         }
         
-        const existingProduct = products.find(p => p.name.toUpperCase() === productName.toUpperCase());
+        const existingProduct = allProducts.find(p => p.name.toUpperCase() === productName.toUpperCase());
 
         const newCantidadPorCaja = parseInt(cantidadPorCajaStr, 10);
         const newPrecioPorUnidad = parseFloat(precioPorUnidadStr?.replace(',', '.') || '0');
-        const newPrecioPorCaja = parseFloat(precioPorCajaStr?.replace(',', '.') || '0');
-        const newUnidades = parseInt(unidadesStr || '10', 0)
-        const newStock = parseInt(stockStr || '0', 0)
-        const newStockMinimo = parseInt(stockMinimoStr || '0', 0)
+        const newPrecioPorCaja = parseFloat(precioPorCajaStr?.replace(',', '.') || (precioPorUnidadStr && cantidadPorCajaStr ? (parseFloat(precioPorUnidadStr?.replace(',', '.') || '0') * newCantidadPorCaja).toString() : '0'));
+        const unidades = unidadesStr && unidadesStr !== '' ? unidadesStr : stockStr ? (parseInt(stockStr, 10) * newCantidadPorCaja).toString() : '0';
+        const newStock = parseInt(stockStr || '0', 10)
+        const newUnidades = parseInt(unidades || '0', 10)
+        const newStockMinimo = parseInt(stockMinimoStr || '1', 10)
         const newPrecioCosto = parseFloat(precioCostoStr?.replace(',', '.') || '0');
 
 
@@ -935,11 +946,16 @@ export default function ProductsScreen() {
           refreshing={refreshing}
           onRefresh={() => loadData(activeFilter, 1, true)}
           keyExtractor={(item) => item.id!}
-          initialNumToRender={15}
+          initialNumToRender={10}
           onEndReached={handleLoadMore}
+          getItemLayout={(data, index) => ({
+            length: 128,
+            offset: 128 * index,
+            index,
+          })}
           onEndReachedThreshold={0.1} // Puedes probar con 0.2 o 0.3 para que se dispare antes
           maxToRenderPerBatch={10}
-          windowSize={10}
+          windowSize={5}
           removeClippedSubviews={true}
           keyboardShouldPersistTaps="never"
           keyboardDismissMode='on-drag'
@@ -947,13 +963,18 @@ export default function ProductsScreen() {
           onViewableItemsChanged={handleViewableItemsChanged}
           viewabilityConfig={viewabilityConfig}
           ListFooterComponent={<LoadingFooter />}
+          onContentSizeChange={() => {
+            if (pendingScrollIndex !== null) {
+              scrollToPendingIndex(pendingScrollIndex);
+            }
+          }}
           contentContainerStyle={[
             styles.listContainer,
-            filteredProducts.length === 1 && styles.singleItemList
+            products.length === 1 && styles.singleItemList
           ]}
           renderItem={renderProductItem}
           ListEmptyComponent={
-            filteredProducts.length === 0 && products.length > 0 ? (
+            products.length === 0 && products.length > 0 ? (
               <Text style={[styles.emptyText, { color: theme.textLight }]}>
                 No se encontraron productos con ese filtro.
               </Text>
@@ -963,31 +984,6 @@ export default function ProductsScreen() {
               </Text>
             )
           }
-          onScrollToIndexFailed={info => {  
-            console.log('⚠️ ScrollToIndex falló:', info);
-            
-            // Calcular offset basado en el índice y altura promedio
-            const offset = Math.max(0, info.averageItemLength * info.index - 200);
-            
-            // Scroll al offset calculado
-            flatListRef.current?.scrollToOffset({
-              offset,
-              animated: false
-            });
-            
-            // Después de un delay, intentar scroll al índice nuevamente
-            setTimeout(() => {
-              try {
-                flatListRef.current?.scrollToIndex({
-                  index: info.index,
-                  animated: true,
-                  viewPosition: 0.5
-                });
-              } catch (error) {
-                console.error('Error en retry de scrollToIndex:', error);
-              }
-            }, 500);
-          }}
         />
         <TouchableOpacity
           style={[styles.addButton, { backgroundColor: theme.primary }]}

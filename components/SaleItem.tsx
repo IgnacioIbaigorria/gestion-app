@@ -28,7 +28,7 @@ export default function SaleItem({ sale, onDelete }: SaleItemProps) {
   };
 
   const getTotalItems = () => {
-    return sale.items.reduce((sum, item) => sum + item.quantity, 0);
+    return sale.items.reduce((sum, item) => sum + item.units, 0);
   };
 
   return (

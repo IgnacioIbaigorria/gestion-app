@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import { productService } from '../services/productService';
 import Colors from '../constants/Colors';
 import { Product } from '../models/types';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useFocusEffect } from '@react-navigation/native';
 
 interface ProductSearchInputProps {
   onSelectProduct: (product: Product) => void;
@@ -26,9 +27,11 @@ export default function ProductSearchInput({ onSelectProduct }: ProductSearchInp
   const [showResults, setShowResults] = useState<boolean>(false);
   const { theme } = useTheme();
 
-  useEffect(() => {
-    loadProducts();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadProducts(); // tu función para obtener la lista actualizada
+    }, []) // No dependencias: se vuelve a ejecutar cada vez que la pantalla gana foco
+  );
 
   // Nuevo: debounce para búsqueda
   useEffect(() => {
@@ -134,12 +137,22 @@ export default function ProductSearchInput({ onSelectProduct }: ProductSearchInp
                   >
                     <Text style={[styles.resultItemName, {color: theme.text}]}>{item.name}</Text>
                     <View style={styles.resultItemDetails}>
-                      <Text style={[styles.resultItemPrice, {color: theme.primary}]}>
-                        ${item.selling_price.toLocaleString('es-ES')}
-                      </Text>
-                      <Text style={[styles.resultItemStock, {color: theme.textLight}]}>
-                        Stock: {item.quantity || 0}
-                      </Text>
+                      <View style={styles.resultItemPrices}>
+                        <Text style={[styles.resultItemPrice, {color: theme.primary}]}>
+                          Precio por caja: ${item.selling_price.toLocaleString('es-ES')}
+                        </Text>
+                        <Text style={[styles.resultItemPrice, {color: theme.primary}]}>
+                          Precio por unidad: ${item.unit_price.toLocaleString('es-ES')}
+                        </Text>
+                      </View>
+                      <View style={styles.resultItemQuantities}>
+                        <Text style={[styles.resultItemStock, {color: theme.textLight}]}>
+                          Cajas: {item.quantity || 0}
+                        </Text>
+                        <Text style={[styles.resultItemStock, {color: theme.textLight}]}>
+                          Unidades: {item.units || 0}
+                        </Text>
+                      </View>
                     </View>
                   </TouchableOpacity>
                 ))}
@@ -220,8 +233,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
+  resultItemPrices: {
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+  },
   resultItemPrice: {
     fontSize: 14,
+  },
+  resultItemQuantities: {
+    flexDirection: 'column',
+    justifyContent: 'flex-end',
   },
   resultItemStock: {
     fontSize: 14,

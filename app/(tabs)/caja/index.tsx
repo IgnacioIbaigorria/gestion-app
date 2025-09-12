@@ -74,17 +74,9 @@ export default function CashRegisterScreen() {
 
   const handleSyncSales = async () => {
     try {
-      setLoading(true);
-      const syncedCount = await salesService.syncSalesWithCashTransactions();
-      
-      // Reload data after sync
+      setLoading(true);      
       await loadData();
       
-      // Show success message
-      Alert.alert(
-        'Éxito',
-        `${syncedCount} ${i18n.t('cash.salesSynced')}`
-      );
     } catch (error) {
       console.error('Error syncing sales:', error);
       Alert.alert('Error', i18n.t('cash.syncError'));
