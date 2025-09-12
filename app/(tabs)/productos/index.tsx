@@ -678,9 +678,6 @@ export default function ProductsScreen() {
       const isCSV = fileName.toLowerCase().endsWith('.csv');
       const isXLSX = fileName.toLowerCase().endsWith('.xlsx');
 
-      Alert.alert("Es formato CSV:", isCSV.toString());
-      Alert.alert("Es formato XLSX:", isXLSX.toString());
-
       if (!isCSV && !isXLSX) {
         Alert.alert('Error de formato', 'Por favor, selecciona un archivo CSV (.csv) o Excel (.xlsx).');
         return;
