@@ -47,11 +47,11 @@ export default function RootLayout() {
         if (loaded) {
           // Remove the environment variable logging
           // console.log('ENV VARS in effect:', {...});
-          
+
           // Remove database initialization
           // const result = await initializeApp();
           // setDbInitialized(result);
-          
+
           // Just hide the splash screen once fonts are loaded
           await SplashScreen.hideAsync();
         }
@@ -62,7 +62,7 @@ export default function RootLayout() {
         await SplashScreen.hideAsync(); // Hide splash screen even on error
       }
     }
-    
+
     initialize();
   }, [loaded]);
 
@@ -108,7 +108,7 @@ function RootLayoutNav() {
           }}
         />
         <Stack.Screen
-          name="settings"
+          name="settings/language"
           options={{
             headerShown: false,
           }}

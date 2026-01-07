@@ -19,7 +19,6 @@ import { tagService } from '../../../services/tagService';
 import { categoryService } from '../../../services/categoryService';
 import { Category } from '../../../models/types';
 import i18n from '@/translations';
-import { useIsFocused } from '@react-navigation/native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { set } from 'date-fns';
 
@@ -44,8 +43,6 @@ export default function AddEditProductScreen() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   
-  // Add isFocused hook to detect when screen comes into focus
-  const isFocused = useIsFocused();
 
   // Reset form when component mounts or when id changes
   useEffect(() => {
@@ -74,7 +71,7 @@ export default function AddEditProductScreen() {
   
   // Update this useEffect to reload tags and categories when screen is focused
   useEffect(() => {
-    if (isFocused) {
+    if (id) {
       loadTags();
       loadCategories();
       
@@ -83,7 +80,7 @@ export default function AddEditProductScreen() {
         resetForm();
       }
     }
-  }, [isFocused, id]);
+  }, [id]);
 
   const loadTags = async () => {
     try {

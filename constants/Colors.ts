@@ -1,66 +1,74 @@
 const colors = {
-  primary: '#1A237E',        // Azul oscuro principal
-  secondary: '#3949AB',      // Azul oscuro secundario
-  primaryLight: '#5C6BC0',   // Azul más claro
-  primaryDark: '#0D1333',    // Azul muy oscuro
-  accent: '#536DFE',         // Azul acento
-  background: '#F4F6FB',     // Fondo muy claro azulado
-  surface: '#FFFFFF',        // Superficie blanca
-  text: '#212121', 
-  white: '#FFFFFF',          // Texto oscuro
-  textLight: '#757575',      // Texto claro
-  error: '#D32F2F',          // Rojo error
-  success: '#1976D2',        // Azul para éxito
-  warning: '#FF9800',        // Ámbar advertencia
-  warningLight: '#FFF3E0',
-  info: '#1A237E',           // Azul oscuro info
-  successLight: '#BBDEFB',   // Azul claro para éxito
-  border: '#E0E0E0',         // Borde gris claro
+  primary: '#4F46E5',        // Indigo 600 - Modern, vibrant primary
+  secondary: '#4338CA',      // Indigo 700
+  primaryLight: '#818CF8',   // Indigo 400
+  primaryDark: '#312E81',    // Indigo 900
+  accent: '#06B6D4',         // Cyan 500
+  background: '#F8FAFC',     // Slate 50
+  surface: '#FFFFFF',        // White
+  surfaceHighlight: '#F1F5F9', // Slate 100
+  text: '#0F172A',           // Slate 900
+  textSecondary: '#475569',  // Slate 600
+  white: '#FFFFFF',
+  textLight: '#94A3B8',      // Slate 400
+  error: '#EF4444',          // Red 500
+  success: '#10B981',        // Emerald 500
+  warning: '#F59E0B',        // Amber 500
+  info: '#3B82F6',           // Blue 500
+  border: '#E2E8F0',         // Slate 200
+  card: '#FFFFFF',
 };
 
 const lightTheme = {
-  primary: '#1A237E',
-  secondary: '#3949AB',
-  primaryLight: '#5C6BC0',
-  primaryDark: '#0D1333',
-  accent: '#536DFE',
-  background: '#F4F6FB',
+  primary: '#4F46E5',
+  secondary: '#4338CA',
+  primaryLight: '#818CF8',
+  primaryDark: '#312E81',
+  accent: '#06B6D4',
+  background: '#F8FAFC',
   surface: '#FFFFFF',
-  text: '#212121',
+  surfaceHighlight: '#F1F5F9',
+  text: '#0F172A',
+  textSecondary: '#475569',
   white: '#FFFFFF',
-  textLight: '#757575',
-  error: '#D32F2F',
-  success: '#1976D2',
-  warning: '#FF9800',
-  blueLight: '#1976D2',
-  warningLight: '#FFF3E0',
-  info: '#1A237E',
-  successLight: '#BBDEFB',
-  border: '#E0E0E0',
-  highlight: '#61ff59',
+  textLight: '#94A3B8',
+  error: '#EF4444',
+  success: '#10B981',
+  warning: '#F59E0B',
+  info: '#3B82F6',
+  border: '#E2E8F0',
+  card: '#FFFFFF',
+  highlight: '#818CF8',
+  shadow: '#64748B', // Slate 500
 };
 
 const darkTheme = {
-  primary: '#3949AB',
-  secondary: '#1A237E',
-  primaryLight: '#232B50',
-  primaryDark: '#0D1333',
-  accent: '#536DFE',
-  background: '#10132A',     // Fondo azul oscuro
-  surface: '#181C36',        // Superficie azul oscuro
-  text: '#FFFFFF',
-  textLight: '#B0B0B0',
+  primary: '#6366F1',        // Indigo 500 - Slightly lighter for dark mode
+  secondary: '#4F46E5',      // Indigo 600
+  primaryLight: '#312E81',   // Indigo 900
+  primaryDark: '#1E1B4B',    // Indigo 950
+  accent: '#22D3EE',         // Cyan 400
+  background: '#0F172A',     // Slate 900
+  surface: '#1E293B',        // Slate 800
+  surfaceHighlight: '#334155', // Slate 700
+  text: '#F8FAFC',           // Slate 50
+  textSecondary: '#CBD5E1',  // Slate 300
   white: '#FFFFFF',
-  error: '#EF5350',
-  success: '#1976D2',
-  blueLight: '#181C36',
-  warning: '#FFA726',
-  warningLight: '#3E2723',
-  info: '#3949AB',
-  successLight: '#1565C0',
-  border: '#232B50',         // Borde azul oscuro
-  highlight: '#61ff59',
+  textLight: '#94A3B8',      // Slate 400
+  error: '#F87171',          // Red 400
+  success: '#34D399',        // Emerald 400
+  warning: '#FBBF24',        // Amber 400
+  info: '#60A5FA',           // Blue 400
+  border: '#334155',         // Slate 700
+  card: '#1E293B',           // Slate 800
+  highlight: '#6366F1',
+  shadow: '#000000',
 };
 
-export { colors, lightTheme, darkTheme };
+const Colors = {
+  light: lightTheme,
+  dark: darkTheme,
+};
+
+export { colors, lightTheme, darkTheme, Colors };
 export default lightTheme;

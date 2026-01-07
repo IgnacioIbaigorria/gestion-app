@@ -1,14 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Dimensions, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, StyleSheet, ScrollView, ActivityIndicator, Dimensions, TouchableOpacity, RefreshControl } from 'react-native';
 import { BarChart, PieChart, LineChart } from 'react-native-chart-kit';
 import { productService } from '../../../services/productService';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import i18n from '@/translations';
-// Agregar el import del servicio de caja
 import { cashService } from '../../../services/cashService';
 import { salesService } from '@/services/salesService';
 import { useTheme } from '@/contexts/ThemeContext';
 import { eachDayOfInterval, format, isSameDay, subDays } from 'date-fns';
+import { Ionicons } from '@expo/vector-icons';
+import { Card } from '@/components/ui/Card';
+import { StatCard } from '@/components/ui/StatCard';
+import { ThemedText } from '@/components/ThemedText';
+import { Colors } from '@/constants/Colors';
 
 interface Statistics {
   totalProducts: number;
@@ -51,8 +55,6 @@ export default function StatisticsScreen() {
     loadStatistics();
   }, [filterType, startDate, endDate]);
 
-  // Modify the loadStatistics function to handle negative profits correctly
-  // In the loadStatistics function, add debugging logs
   const loadStatistics = async () => {
     try {
       setLoading(true);
@@ -61,48 +63,48 @@ export default function StatisticsScreen() {
         cashService.getAllTransactions(),
         salesService.getAllSales()
       ]);
-      // Add debug logs
+
       let balanceHistory: { date: Date; balance: number }[] = [];
 
-      
+
       const startOfDay = new Date(startDate);
       startOfDay.setHours(0, 0, 0, 0);
-      
+
       const endOfDay = new Date(endDate);
       endOfDay.setHours(23, 59, 59, 999);
-      
+
       // Filter transactions based on date range
       const filteredTransactions = transactions.filter((transaction: { date: Date }) => {
-        const transactionDate = transaction.date; // Ya         
+        const transactionDate = transaction.date;
         switch (filterType) {
           case 'monthly':
             const today = new Date();
             const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
             firstDayOfMonth.setHours(0, 0, 0, 0);
             return transactionDate >= firstDayOfMonth;
-          
+
           case 'custom':
             return transactionDate >= startOfDay && transactionDate <= endOfDay;
-          
+
           default:
             return true;
         }
       });
-  
+
       // Filter sales based on the same date range
       const filteredSales = sales.filter((sale: { date: Date }) => {
-        const saleDate = sale.date; // Ya es Date
-        
+        const saleDate = sale.date;
+
         switch (filterType) {
           case 'monthly':
             const today = new Date();
             const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
             firstDayOfMonth.setHours(0, 0, 0, 0);
             return saleDate >= firstDayOfMonth;
-          
+
           case 'custom':
             return saleDate >= startOfDay && saleDate <= endOfDay;
-          
+
           default:
             return true;
         }
@@ -114,7 +116,7 @@ export default function StatisticsScreen() {
       });
       let startDateForChart: Date;
       let endDateForChart = new Date();
-      
+
       switch (filterType) {
         case 'monthly':
           const today = new Date();
@@ -125,39 +127,34 @@ export default function StatisticsScreen() {
           endDateForChart = endOfDay;
           break;
         default:
-          // For 'all', show last 30 days if there are many transactions, or all days if few
           if (sortedTransactions.length > 30) {
             startDateForChart = subDays(new Date(), 30);
           } else if (sortedTransactions.length > 0) {
-            // Get the date of the first transaction
             const firstTransaction = sortedTransactions[0];
-            const firstDate = firstTransaction.date instanceof Date 
-              ? firstTransaction.date 
+            const firstDate = firstTransaction.date instanceof Date
+              ? firstTransaction.date
               : new Date(firstTransaction.date);
             startDateForChart = firstDate;
           } else {
-            startDateForChart = subDays(new Date(), 7); // Default to last week if no transactions
+            startDateForChart = subDays(new Date(), 7);
           }
       }
       const daysInRange = eachDayOfInterval({
         start: startDateForChart,
         end: endDateForChart
       });
-      
-      // Initialize with starting balance of 0
+
       let runningBalance = 0;
-      
-      // Create initial data point
+
       balanceHistory.push({
         date: daysInRange[0],
         balance: runningBalance
       });
       for (const transaction of sortedTransactions) {
-        const transactionDate = transaction.date instanceof Date 
-          ? transaction.date 
+        const transactionDate = transaction.date instanceof Date
+          ? transaction.date
           : new Date(transaction.date);
-        
-        // Update running balance based on transaction type
+
         switch (transaction.type) {
           case 'sale':
           case 'deposit':
@@ -168,20 +165,18 @@ export default function StatisticsScreen() {
             runningBalance -= transaction.amount;
             break;
         }
-        
-        // Find or create entry for this date
-        const existingEntry = balanceHistory.find(entry => 
+
+        const existingEntry = balanceHistory.find(entry =>
           isSameDay(entry.date, transactionDate)
         );
-        
+
         if (existingEntry) {
           existingEntry.balance = runningBalance;
         } else {
-          // Find the right position to insert this date
-          const insertIndex = balanceHistory.findIndex(entry => 
+          const insertIndex = balanceHistory.findIndex(entry =>
             entry.date.getTime() > transactionDate.getTime()
           );
-          
+
           if (insertIndex >= 0) {
             balanceHistory.splice(insertIndex, 0, {
               date: transactionDate,
@@ -196,16 +191,15 @@ export default function StatisticsScreen() {
         }
       }
       balanceHistory.sort((a, b) => a.date.getTime() - b.date.getTime());
-      
-      // Ensure we have data points for all days in range
+
       const completeBalanceHistory: typeof balanceHistory = [];
       let lastBalance = 0;
-      
+
       for (const day of daysInRange) {
-        const existingEntry = balanceHistory.find(entry => 
+        const existingEntry = balanceHistory.find(entry =>
           isSameDay(entry.date, day)
         );
-        
+
         if (existingEntry) {
           lastBalance = existingEntry.balance;
           completeBalanceHistory.push(existingEntry);
@@ -217,28 +211,22 @@ export default function StatisticsScreen() {
         }
       }
 
-  
-      // Calculate product statistics
+
       const statistics = products.reduce<Statistics>((acc, product) => {
-        // Calculate total products
         acc.totalProducts += 1;
-        
-        // Calculate products with low stock
+
         if (product.quantity < (product.low_stock_threshold || 5)) {
           acc.lowStockProducts += 1;
         }
-        
-        // Calculate total invested money (cost price * quantity)
+
         const invested = product.cost_price * product.quantity;
         acc.investedMoney += invested;
-        
-        // Calculate potential income (selling price * quantity)
+
         const potential = product.selling_price * product.quantity;
         acc.potentialIncome += potential;
-        
-        // Calculate total value based on selling prices
+
         acc.totalValue += potential;
-        
+
         return acc;
       }, {
         totalProducts: 0,
@@ -253,11 +241,9 @@ export default function StatisticsScreen() {
         totalProfit: 0,
         balanceHistory: [],
       });
-      
-      // Calculate potential profit
+
       statistics.potentialProfit = statistics.potentialIncome - statistics.investedMoney;
-      
-      // Calculate financial statistics from filtered transactions
+
       const financialStats = filteredTransactions.reduce((acc: { totalIncome: any; totalExpenses: any; }, transaction: { type: any; amount: any; }) => {
         switch (transaction.type) {
           case 'sale':
@@ -274,52 +260,39 @@ export default function StatisticsScreen() {
         totalIncome: 0,
         totalExpenses: 0
       });
-  
-      // Calculate actual profit from sales by analyzing each sale's products
+
       let actualProfit = 0;
-      
-      // Create a map of products for quick lookup
+
       const productsMap = products.reduce<Record<string, any>>((map, product) => {
         map[product.id!] = product;
         return map;
       }, {} as Record<string, any>);
-            
-      // Calculate profit from each sale by comparing selling price to cost price
+
       filteredSales.forEach((sale: { items: any[]; }) => {
-        
         if (sale.items && sale.items.length > 0) {
-          console.log(sale);
           sale.items.forEach(item => {
             const product = productsMap[item.productId];
-            
+
             if (product) {
-              // Ensure all values are valid numbers before calculation
               const itemPrice = Number(product.selling_price) || 0;
               const costPrice = Number(product.cost_price) || 0;
               const quantity = Number(item.quantity) || 0;
-              
-              // Calculate profit for this item: (selling price - cost price) * quantity
+
               const itemProfit = (itemPrice - costPrice) * quantity;
-              console.log("Ganancia de producto: ", product.name, "es de: ", itemProfit);
-              
+
               actualProfit += isNaN(itemProfit) ? 0 : itemProfit;
             }
           });
         }
       });
-      
-      console.log("Ganancia actual: ", actualProfit);
-      // Update statistics with financial data
+
       statistics.totalIncome = isNaN(financialStats.totalIncome) ? 0 : Number(financialStats.totalIncome);
       statistics.totalExpenses = isNaN(financialStats.totalExpenses) ? 0 : Number(financialStats.totalExpenses);
       statistics.netIncome = statistics.totalIncome - statistics.totalExpenses;
       statistics.balanceHistory = completeBalanceHistory;
 
-      // Use actual calculated profit instead of percentage estimate
-      // Ensure we're storing a valid number
       statistics.totalProfit = isNaN(actualProfit) ? 0 : Number(actualProfit);
-      console.log("Ganancia total:" , statistics.totalProfit);
-      
+
       setStats(statistics);
     } catch (error) {
       console.error('Error loading statistics:', error);
@@ -332,17 +305,12 @@ export default function StatisticsScreen() {
     setShowDatePicker(false);
     if (selectedDate) {
       if (datePickerType === 'start') {
-        // Validar que la fecha de inicio no sea posterior a la fecha de fin
         if (selectedDate > endDate) {
-          // Si la fecha seleccionada es posterior a la fecha de fin, ajustar la fecha de fin
           setEndDate(selectedDate);
         }
         setStartDate(selectedDate);
       } else {
-        // Validar que la fecha de fin no sea anterior a la fecha de inicio
         if (selectedDate < startDate) {
-          // Si la fecha seleccionada es anterior a la fecha de inicio, mostrar un mensaje o ajustar
-          // Opción 1: Ajustar automáticamente la fecha de inicio
           setStartDate(selectedDate);
         }
         setEndDate(selectedDate);
@@ -361,47 +329,42 @@ export default function StatisticsScreen() {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={theme.primary} />
-        <Text style={[styles.loadingText, { color: theme.textLight }]}>{i18n.t('statistics.loading')}</Text>
+        <ThemedText style={{ marginTop: 12 }}>{i18n.t('statistics.loading')}</ThemedText>
       </View>
     );
   }
 
   const screenWidth = Dimensions.get('window').width;
-  const chartWidth = screenWidth - 50; // Ajuste del ancho
+  const chartWidth = screenWidth - 48; // Standard padding (24 * 2)
 
-  // Modifica la configuración del gráfico para incluir el color de las etiquetas de valores
   const chartConfig = {
     backgroundColor: theme.surface,
     backgroundGradientFrom: theme.surface,
     backgroundGradientTo: theme.surface,
     decimalPlaces: 0,
-    color: (opacity = 1) => theme.text,
-    labelColor: (opacity = 1) => theme.text,
+    color: (opacity = 1) => theme.primary,
+    labelColor: (opacity = 1) => theme.textSecondary,
     style: {
       borderRadius: 16,
     },
     propsForDots: {
-      r: "3",
+      r: "4",
       strokeWidth: "2",
       stroke: theme.primary
     },
     propsForLabels: {
       fontSize: 11,
-      fontWeight: 'bold',
-      fill: theme.text,
+      fontWeight: '500',
     },
-    // Añadir esta propiedad para los valores sobre las barras
     propsForValues: {
-      fontSize: 12,
-      fontWeight: 'bold',
-      fill: theme.text, // Color negro o el que prefieras
+      fontSize: 10,
+      fontWeight: '500',
     },
     barPercentage: 0.7,
-    withInnerLines: false, // Quita las líneas internas de la cuadrícula
+    withInnerLines: true,
     withOuterLines: false,
   };
 
-  // Datos para el gráfico de inventario
   const inventoryData = {
     labels: [
       i18n.t('statistics.cost'),
@@ -410,102 +373,68 @@ export default function StatisticsScreen() {
     ],
     datasets: [{
       data: [
-        stats.investedMoney,
-        stats.potentialIncome,
-        stats.potentialProfit
+        `${stats.investedMoney}`,
+        `${stats.potentialIncome}`,
+        `${stats.potentialProfit}`
       ],
       colors: [
-        (opacity = 1) => `rgba(231, 76, 60, ${opacity})`,   // Rojo para costos
-        (opacity = 1) => `rgba(52, 152, 219, ${opacity})`,  // Azul para ventas
-        (opacity = 1) => `rgba(46, 204, 113, ${opacity})`   // Verde para ganancias
+        (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,   // Red 500
+        (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,  // Blue 500
+        (opacity = 1) => `rgba(16, 185, 129, ${opacity})`   // Emerald 500
       ]
     }],
-    legend: [i18n.t('statistics.valuesSummary')]
   };
-  
+
   const renderFilterControls = () => (
-    <View style={[styles.filterContainer, { backgroundColor: theme.surface }]}>
-      <Text style={[styles.sectionTitle, { color: theme.text }]}>{i18n.t('statistics.analysisTitle')}</Text>
+    <View style={styles.filterSection}>
       <View style={styles.filterButtons}>
-        <TouchableOpacity
-          style={[
-            styles.filterButton, 
-            { backgroundColor: theme.surface, borderColor: theme.border },
-            filterType === 'all' && [styles.filterButtonActive, { backgroundColor: theme.primary }]
-          ]}
-          onPress={() => setFilterType('all')}
-        >
-          <Text style={[
-            styles.filterButtonText, 
-            { color: theme.text },
-            filterType === 'all' && [styles.filterButtonTextActive, { color: theme.surface }]
-          ]}>
-            {i18n.t('statistics.historic')}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.filterButton, 
-            { backgroundColor: theme.surface, borderColor: theme.border },
-            filterType === 'monthly' && [styles.filterButtonActive, { backgroundColor: theme.primary }]
-          ]}
-          onPress={() => setFilterType('monthly')}
-        >
-          <Text style={[
-            styles.filterButtonText, 
-            { color: theme.text },
-            filterType === 'monthly' && [styles.filterButtonTextActive, { color: theme.surface }]
-          ]}>
-            {i18n.t('statistics.monthly')}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.filterButton, 
-            { backgroundColor: theme.surface, borderColor: theme.border },
-            filterType === 'custom' && [styles.filterButtonActive, { backgroundColor: theme.primary }]
-          ]}
-          onPress={() => setFilterType('custom')}
-        >
-          <Text style={[
-            styles.filterButtonText, 
-            { color: theme.text },
-            filterType === 'custom' && [styles.filterButtonTextActive, { color: theme.surface }]
-          ]}>
-            {i18n.t('statistics.custom')}
-          </Text>
-        </TouchableOpacity>
+        {(['all', 'monthly', 'custom'] as const).map((type) => (
+          <TouchableOpacity
+            key={type}
+            style={[
+              styles.filterButton,
+              filterType === type && { backgroundColor: theme.primary },
+              filterType !== type && { backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border }
+            ]}
+            onPress={() => setFilterType(type)}
+          >
+            <ThemedText
+              type="defaultSemiBold"
+              style={[
+                styles.filterButtonText,
+                filterType === type ? { color: '#FFF' } : { color: theme.textSecondary }
+              ]}
+            >
+              {type === 'all' ? i18n.t('statistics.historic') :
+                type === 'monthly' ? i18n.t('statistics.monthly') :
+                  i18n.t('statistics.custom')}
+            </ThemedText>
+          </TouchableOpacity>
+        ))}
       </View>
 
       {filterType === 'custom' && (
         <View style={styles.datePickerContainer}>
           <TouchableOpacity
-            style={[styles.dateButton, { 
-              backgroundColor: theme.background, 
-              borderColor: theme.border 
-            }]}
+            style={[styles.dateButton, { backgroundColor: theme.surface, borderColor: theme.border }]}
             onPress={() => {
               setDatePickerType('start');
               setShowDatePicker(true);
             }}
           >
-            <Text style={[styles.dateButtonText, { color: theme.text }]}>
-              {i18n.t('statistics.from')}: {startDate.toLocaleDateString()}
-            </Text>
+            <Ionicons name="calendar-outline" size={16} color={theme.textSecondary} style={{ marginRight: 6 }} />
+            <ThemedText style={{ fontSize: 13 }}>{startDate.toLocaleDateString()}</ThemedText>
           </TouchableOpacity>
+          <Ionicons name="arrow-forward" size={16} color={theme.textLight} />
           <TouchableOpacity
-            style={[styles.dateButton, { 
-              backgroundColor: theme.background, 
-              borderColor: theme.border 
-            }]}
+            style={[styles.dateButton, { backgroundColor: theme.surface, borderColor: theme.border }]}
             onPress={() => {
               setDatePickerType('end');
               setShowDatePicker(true);
             }}
           >
-            <Text style={[styles.dateButtonText, { color: theme.text }]}>
-              {i18n.t('statistics.to')}: {endDate.toLocaleDateString()}
-            </Text>
+            <Ionicons name="calendar-outline" size={16} color={theme.textSecondary} style={{ marginRight: 6 }} />
+            <ThemedText style={{ fontSize: 13 }}>{endDate.toLocaleDateString()}</ThemedText>
           </TouchableOpacity>
         </View>
       )}
@@ -519,7 +448,7 @@ export default function StatisticsScreen() {
       )}
     </View>
   );
-  // In the financial data section
+
   const financialData = {
     labels: [
       i18n.t('statistics.income'),
@@ -530,480 +459,387 @@ export default function StatisticsScreen() {
     datasets: [{
       data: [
         isNaN(stats.totalIncome) ? 0 : stats.totalIncome,
-        isNaN(stats.totalExpenses) ? 0 : -Math.abs(stats.totalExpenses), // Make expenses always negative for the chart
+        isNaN(stats.totalExpenses) ? 0 : -Math.abs(stats.totalExpenses),
         isNaN(stats.netIncome) ? 0 : stats.netIncome,
         isNaN(stats.totalProfit) ? 0 : stats.totalProfit
       ],
-      // Colors remain the same
       colors: [
-        (opacity = 1) => `rgba(46, 204, 113, ${opacity})`,  // Verde para ingresos
-        (opacity = 1) => `rgba(231, 76, 60, ${opacity})`,   // Rojo para egresos
-        (opacity = 1) => stats.netIncome >= 0 
-          ? `rgba(52, 152, 219, ${opacity})`  // Azul para neto positivo
-          : `rgba(231, 76, 60, ${opacity})`,  // Rojo para neto negativo
+        (opacity = 1) => `rgba(16, 185, 129, ${opacity})`,
+        (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
+        (opacity = 1) => stats.netIncome >= 0
+          ? `rgba(59, 130, 246, ${opacity})`
+          : `rgba(239, 68, 68, ${opacity})`,
         (opacity = 1) => stats.totalProfit >= 0
-          ? `rgba(46, 204, 113, ${opacity})`  // Verde para ganancia positiva
-          : `rgba(231, 76, 60, ${opacity})`   // Rojo para ganancia negativa
+          ? `rgba(16, 185, 129, ${opacity})`
+          : `rgba(239, 68, 68, ${opacity})`
       ]
     }]
   };
 
-  const hexToRgb = (hex: string) => {
-    // Eliminar el # si existe
-    hex = hex.replace('#', '');
-    
-    // Convertir a RGB
-    const r = parseInt(hex.substring(0, 2), 16);
-    const g = parseInt(hex.substring(2, 4), 16);
-    const b = parseInt(hex.substring(4, 6), 16);
-    
-    return `${r}, ${g}, ${b}`;
-  };
-    
   const renderBalanceHistoryChart = () => {
     if (stats.balanceHistory.length < 2) {
       return (
-        <View style={[styles.chartContainer, { backgroundColor: theme.surface }]}>
-          <Text style={[styles.chartTitle, { color: theme.text }]}>Historial de saldo</Text>
-          <Text style={[styles.chartDescription, { color: theme.textLight }]}>
-            No hay suficientes dato para mostrar en el historial de saldo.
-          </Text>
-        </View>
+        <Card variant="outlined" style={styles.chartCard}>
+          <ThemedText type="defaultSemiBold" style={styles.chartTitle}>Historial de saldo</ThemedText>
+          <ThemedText style={{ color: theme.textLight, textAlign: 'center', marginVertical: 20 }}>
+            No hay suficientes datos para mostrar el historial.
+          </ThemedText>
+        </Card>
       );
     }
-  
+
     const maxDataPoints = 6;
     let displayLabels: string[];
     let displayData: number[];
-  
+
     if (stats.balanceHistory.length > maxDataPoints) {
       const step = Math.ceil(stats.balanceHistory.length / maxDataPoints);
       const reduced = stats.balanceHistory.filter((_, index) => index % step === 0);
-  
-      // Si el último punto no está incluido, lo agregamos
+
       if (reduced[reduced.length - 1] !== stats.balanceHistory[stats.balanceHistory.length - 1]) {
         reduced.push(stats.balanceHistory[stats.balanceHistory.length - 1]);
       }
-  
-      // Si hay más de maxDataPoints, recorta al máximo permitido
+
       while (reduced.length > maxDataPoints) {
-        reduced.splice(1, 1); // Quita del medio
+        reduced.splice(1, 1);
       }
-  
+
       displayLabels = reduced.map(item => format(item.date, 'dd/MM'));
       displayData = reduced.map(item => item.balance);
     } else {
       displayLabels = stats.balanceHistory.map(item => format(item.date, 'dd/MM'));
       displayData = stats.balanceHistory.map(item => item.balance);
     }
-  
+
     const balanceData = {
       labels: displayLabels,
       datasets: [
         {
           data: displayData,
-          color: (opacity = 1) => `rgba(46, 204, 113, ${opacity})`,
+          color: (opacity = 1) => theme.primary,
           strokeWidth: 2
         }
       ],
       legend: ['Saldo']
     };
-    const screenWidth = Dimensions.get('window').width;
-    const chartWidth = screenWidth - 50;
-  
+
     return (
-      <View style={[styles.chartContainer, { backgroundColor: theme.surface }]}>
-        <Text style={[styles.chartTitle, { color: theme.text }]}>Historial de saldo</Text>
-        <Text style={[styles.chartDescription, { color: theme.textLight }]}>
-          Evolución del saldo a lo largo del tiempo
-        </Text>
+      <Card variant="elevated" style={styles.chartCard}>
+        <View style={styles.chartHeader}>
+          <View>
+            <ThemedText type="defaultSemiBold" style={styles.chartTitle}>Historial de saldo</ThemedText>
+            <ThemedText style={styles.chartSubtitle}>Evolución en el tiempo</ThemedText>
+          </View>
+          <Ionicons name="trending-up-outline" size={24} color={theme.primary} />
+        </View>
+
         <LineChart
           data={balanceData}
-          width={chartWidth - 30}
+          width={chartWidth - 32} // Card padding
           height={220}
           chartConfig={{
             ...chartConfig,
-            backgroundGradientFrom: theme.surface,
-            backgroundGradientTo: theme.surface,
-            decimalPlaces: 0,
-            color: (opacity = 1) => `rgba(46, 204, 113, ${opacity})`,
-            labelColor: (opacity = 1) => theme.text,
-            propsForDots: {
-              r: "4",
-              strokeWidth: "2",
-              stroke: theme.primary
-            },
-            propsForLabels: {
-              fontSize: 11,
-              fontWeight: 'bold',
-              fill: theme.text,
-            },
+            color: (opacity = 1) => theme.primary,
           }}
           bezier
           style={styles.chart}
           yAxisLabel="$"
           yAxisSuffix=""
           fromZero
-          withInnerLines={true}
-          withOuterLines={true}
-          withHorizontalLines={true}
-          withVerticalLines={true}
+          withInnerLines
+          withOuterLines={false}
+          withVerticalLines={false}
         />
-      </View>
+      </Card>
     );
   };
 
 
   return (
-    <ScrollView 
-      style={[styles.container, { backgroundColor: theme.background }]}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          colors={[theme.primary]}
-          tintColor={theme.primary}
-        />
-      }
-    >
-      <View style={[styles.header, { backgroundColor: theme.surface }]}>
-        <Text style={[styles.title, { color: theme.text }]}>{i18n.t('statistics.title')}</Text>
-      </View>
-
-      {renderFilterControls()}
-
-      <View style={styles.statsContainer}>
-        <View style={[styles.statCard, { backgroundColor: theme.surface }]}>
-          <Text style={[styles.statValue, { color: theme.text }]}>{stats.totalProducts}</Text>
-          <Text style={[styles.statLabel, { color: theme.textLight }]}>{i18n.t('statistics.totalProducts')}</Text>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[theme.primary]}
+            tintColor={theme.primary}
+          />
+        }
+      >
+        <View style={styles.header}>
+          <ThemedText type="title">{i18n.t('statistics.title')}</ThemedText>
         </View>
 
-        <View style={[styles.statCard, { backgroundColor: theme.surface }]}>
-          <Text style={[styles.statValue, { color: theme.text }]}>{stats.lowStockProducts}</Text>
-          <Text style={[styles.statLabel, { color: theme.textLight }]}>{i18n.t('statistics.lowStockProducts')}</Text>
+        {renderFilterControls()}
+
+        <View style={styles.statsGrid}>
+          <View style={styles.statsRow}>
+            <StatCard
+              title={i18n.t('statistics.totalProducts')}
+              value={stats.totalProducts}
+              icon="cube-outline"
+              color={theme.info}
+              style={{ flex: 1 }}
+            />
+            <StatCard
+              title={i18n.t('statistics.lowStockProducts')}
+              value={stats.lowStockProducts}
+              icon="alert-circle-outline"
+              color={theme.warning}
+              style={{ flex: 1 }}
+            />
+          </View>
+          <View style={styles.statsRow}>
+            <StatCard
+              title={i18n.t('statistics.potentialProfit')}
+              value={`$${stats.potentialProfit.toLocaleString('es-ES')}`}
+              icon="cash-outline"
+              color={theme.success}
+              style={{ flex: 1 }}
+            />
+          </View>
+          <View style={styles.statsRow}>
+            <StatCard
+              title={i18n.t('statistics.investedMoney')}
+              value={`$${stats.investedMoney.toLocaleString('es-ES')}`}
+              icon="wallet-outline"
+              color={theme.error}
+              style={{ flex: 1 }}
+            />
+            <StatCard
+              title={i18n.t('statistics.potentialIncome')}
+              value={`$${stats.potentialIncome.toLocaleString('es-ES')}`}
+              icon="trending-up-outline"
+              color={theme.accent}
+              style={{ flex: 1 }}
+            />
+          </View>
         </View>
 
-        <View style={[styles.statCard, { backgroundColor: theme.surface }]}>
-          <Text style={[styles.statValue, { color: theme.text }]}>
-            ${stats.potentialProfit.toLocaleString('es-ES')}
-          </Text>
-          <Text style={[styles.statLabel, { color: theme.textLight }]}>{i18n.t('statistics.potentialProfit')}</Text>
-        </View>
+        <Card variant="elevated" style={styles.chartCard}>
+          <View style={styles.chartHeader}>
+            <View>
+              <ThemedText type="defaultSemiBold" style={styles.chartTitle}>{i18n.t('statistics.capitalDistribution')}</ThemedText>
+              <ThemedText style={styles.chartSubtitle}>Inversión vs. Ganancia</ThemedText>
+            </View>
+            <Ionicons name="pie-chart-outline" size={24} color={theme.accent} />
+          </View>
 
-        <View style={[styles.statCard, { backgroundColor: theme.surface }]}>
-          <Text style={[styles.statValue, { color: theme.text }]}>
-            ${stats.investedMoney.toLocaleString('es-ES')}
-          </Text>
-          <Text style={[styles.statLabel, { color: theme.textLight }]}>{i18n.t('statistics.investedMoney')}</Text>
-        </View>
+          <PieChart
+            data={[
+              {
+                name: i18n.t('statistics.investment'),
+                value: stats.investedMoney,
+                color: theme.error, // Usamos rojo para inversión/costo
+                legendFontColor: theme.textSecondary,
+                legendFontSize: 12,
+                legendFontWeight: '600',
+              },
+              {
+                name: i18n.t('statistics.profit'),
+                value: stats.potentialProfit,
+                color: theme.success, // Verde para ganancia
+                legendFontColor: theme.textSecondary,
+                legendFontSize: 12,
+                legendFontWeight: '600',
+              }
+            ]}
+            width={chartWidth}
+            height={200}
+            chartConfig={chartConfig}
+            accessor="value"
+            backgroundColor="transparent"
+            paddingLeft="15"
+            center={[0, 0]}
+            absolute
+            hasLegend={true}
+          />
+        </Card>
 
-        <View style={[styles.statCard, { backgroundColor: theme.surface }]}>
-          <Text style={[styles.statValue, { color: theme.text }]}>
-            ${stats.potentialIncome.toLocaleString('es-ES')}
-          </Text>
-          <Text style={[styles.statLabel, { color: theme.textLight }]}>{i18n.t('statistics.potentialIncome')}</Text>
-        </View>
-      </View>
+        <Card variant="elevated" style={styles.chartCard}>
+          <View style={styles.chartHeader}>
+            <View>
+              <ThemedText type="defaultSemiBold" style={styles.chartTitle}>Análisis de inventario</ThemedText>
+              <ThemedText style={styles.chartSubtitle}>{i18n.t('statistics.valuesSummary')}</ThemedText>
+            </View>
+            <Ionicons name="bar-chart-outline" size={24} color={theme.info} />
+          </View>
 
-      <View style={[styles.chartContainer, { backgroundColor: theme.surface }]}>
-        <Text style={[styles.chartTitle, { color: theme.text }]}>{i18n.t('statistics.capitalDistribution')}</Text>
-        <PieChart
-          data={[
-            {
-              name: i18n.t('statistics.investment'),
-              value: stats.investedMoney,
-              color: theme.primaryLight,
-              legendFontColor: theme.text,
-              legendFontSize: 12,
-              legendFontWeight: 'bold',
-              valuePrefix: '$',
-            },
-            {
-              name: i18n.t('statistics.profit'),
-              value: stats.potentialProfit,
-              color: theme.success,
-              legendFontColor: theme.text,
-              legendFontSize: 12,
-              legendFontWeight: 'bold',
-              valuePrefix: '$',
-            }
-          ]}
-          width={chartWidth}
-          height={200}
-          chartConfig={chartConfig}
-          accessor="value"
-          backgroundColor="transparent"
-          paddingLeft="0"
-          center={[10, -20]}
-          absolute
-          hasLegend={true}
-          avoidFalseZero
-        />
-      </View>
-
-      <View style={styles.chartSection}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>{i18n.t('statistics.inventoryAnalysis')}</Text>
-        
-        <View style={[styles.chartContainer, { backgroundColor: theme.surface }]}>
-          <Text style={[styles.chartTitle, { color: theme.text }]}>{i18n.t('statistics.valuesSummary')}</Text>
-          <Text style={[styles.chartDescription, { color: theme.textLight }]}>
-            {i18n.t('statistics.inventoryComparison')}
-          </Text>
           <BarChart
             yAxisLabel="$"
             yAxisSuffix=""
             data={inventoryData}
-            width={chartWidth - 30}
-            height={200}
+            width={chartWidth - 32}
+            height={220}
+            chartConfig={chartConfig}
+            verticalLabelRotation={0}
+            showValuesOnTopOfBars
+            yLabelsOffset={8}
+            withCustomBarColorFromData={true}
+            flatColor={true}
+            fromZero
+            withInnerLines
+            style={styles.chart}
+          />
+        </Card>
+
+        {renderBalanceHistoryChart()}
+
+        <Card variant="elevated" style={styles.balanceContainer}>
+          <View style={styles.chartHeader}>
+            <View>
+              <ThemedText type="defaultSemiBold" style={styles.chartTitle}>Balance financiero</ThemedText>
+              <ThemedText style={styles.chartSubtitle}>{i18n.t('statistics.financialAnalysis')}</ThemedText>
+            </View>
+            <Ionicons name="calculator-outline" size={24} color={theme.success} />
+          </View>
+
+          <BarChart
+            yAxisLabel="$"
+            yAxisSuffix=""
+            data={financialData}
+            width={chartWidth - 32}
+            height={220}
             chartConfig={chartConfig}
             verticalLabelRotation={0}
             showValuesOnTopOfBars
             withCustomBarColorFromData={true}
             flatColor={true}
             fromZero
-            withInnerLines={false}
-            style={{...styles.chart, marginLeft: 0}}
+            withInnerLines
+            style={styles.chart}
           />
-          <View style={[styles.legendContainer, { backgroundColor: theme.background }]}>
-            <View style={[styles.legendItem, { borderBottomColor: theme.border }]}>
-              <Text style={[styles.legendLabel, { color: theme.text }]}>{i18n.t('statistics.totalCost')}:</Text>
-              <Text style={[styles.legendValue, { color: theme.text }]}>${stats.investedMoney.toLocaleString('es-ES')}</Text>
-            </View>
-            <View style={[styles.legendItem, { borderBottomColor: theme.border }]}>
-              <Text style={[styles.legendLabel, { color: theme.text }]}>{i18n.t('statistics.totalSale')}:</Text>
-              <Text style={[styles.legendValue, { color: theme.text }]}>${stats.potentialIncome.toLocaleString('es-ES')}</Text>
-            </View>
-            <View style={[styles.legendItem, { borderBottomColor: theme.border }]}>
-              <Text style={[styles.legendLabel, { color: theme.text }]}>{i18n.t('statistics.expectedProfit')}:</Text>
-              <Text style={[styles.legendValue, { color: theme.success }]}>
-                ${stats.potentialProfit.toLocaleString('es-ES')}
-              </Text>
-            </View>
-          </View>
-        </View>
-      </View>
 
-      <View style={styles.chartSection}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Flujo de dinero</Text>
-        {renderBalanceHistoryChart()}
-      </View>
-      
-      <View style={styles.balanceContainer}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Balance financiero</Text>
-        
-        <View style={[styles.chartContainer, { backgroundColor: theme.surface }]}>
-          <Text style={[styles.chartTitle, { color: theme.text }]}>Resumen financiero</Text>
-          <Text style={[styles.chartDescription, { color: theme.textLight }]}>
-            {i18n.t('statistics.financialAnalysis')}
-          </Text>
-          <BarChart
-            yAxisLabel="$"
-            yAxisSuffix=""
-            data={financialData}
-            width={chartWidth - 60}
-            height={200}
-            chartConfig={{
-              ...chartConfig,
-              decimalPlaces: 0,
-            }}          
-            style={{
-              ...styles.chart,
-              marginVertical: 16,
-            }}
-            showValuesOnTopOfBars
-            fromZero
-            withCustomBarColorFromData={true}
-            flatColor={true}
-            withInnerLines={false}
-          />
-          <View style={[styles.legendContainer, { backgroundColor: theme.background }]}>
-            <View style={[styles.legendItem, { borderBottomColor: theme.border }]}>
-              <Text style={[styles.legendLabel, { color: theme.text }]}>{i18n.t('statistics.totalIncome')}:</Text>
-              <Text style={[styles.legendValue, { color: theme.success }]}>
-                ${stats.totalIncome.toLocaleString('es-ES')}
-              </Text>
-            </View>
-            <View style={[styles.legendItem, { borderBottomColor: theme.border }]}>
-              <Text style={[styles.legendLabel, { color: theme.text }]}>{i18n.t('statistics.totalExpenses')}:</Text>
-              <Text style={[styles.legendValue, { color: theme.error }]}>
-                -${stats.totalExpenses.toLocaleString('es-ES')}
-              </Text>
-            </View>
-            <View style={[styles.legendItem, { borderBottomColor: theme.border }]}>
-              <Text style={[styles.legendLabel, { color: theme.text }]}>{i18n.t('statistics.netBalance')}:</Text>
-              <Text style={[styles.legendValue, { 
-                color: stats.netIncome >= 0 ? theme.success : theme.error 
-              }]}>
+          <View style={styles.legendContainer}>
+            <View style={styles.legendRow}>
+              <View style={[styles.legendDot, { backgroundColor: theme.success }]} />
+              <ThemedText style={styles.legendLabel}>{i18n.t('statistics.netBalance')}:</ThemedText>
+              <ThemedText type="defaultSemiBold" style={{ color: stats.netIncome >= 0 ? theme.success : theme.error }}>
                 ${stats.netIncome.toLocaleString('es-ES')}
-              </Text>
+              </ThemedText>
             </View>
-            <View style={[styles.legendItem, { borderBottomColor: theme.border }]}>
-              <Text style={[styles.legendLabel, { color: theme.text }]}>{i18n.t('statistics.estimatedProfit')}:</Text>
-              <Text style={[styles.legendValue, { 
-                color: stats.totalProfit >= 0 ? theme.primary : theme.error 
-              }]}>
+            <View style={styles.legendRow}>
+              <View style={[styles.legendDot, { backgroundColor: theme.primary }]} />
+              <ThemedText style={styles.legendLabel}>{i18n.t('statistics.estimatedProfit')}:</ThemedText>
+              <ThemedText type="defaultSemiBold" style={{ color: stats.totalProfit >= 0 ? theme.success : theme.error }}>
                 ${stats.totalProfit.toLocaleString('es-ES')}
-              </Text>
+              </ThemedText>
             </View>
           </View>
-        </View>
-      </View>
-    </ScrollView>
+        </Card>
+      </ScrollView>
+    </View>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 40,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-  },
   header: {
-    padding: 20,
+    marginBottom: 20,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  statsContainer: {
-    padding: 16,
-  },
-  statCard: {
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-  },
-  highlightCard: {
-    // backgroundColor applied dynamically
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  statLabel: {
-    fontSize: 16,
-  },
-  chartContainer: {
-    borderRadius: 12,
-    padding: 16,
-    marginHorizontal: 16,
-    marginBottom: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-  },
-  chartTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  chartSection: {
-    padding: 16,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    marginLeft: 4,
-  },
-  chartDescription: {
-    fontSize: 14,
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  chart: {
-    marginVertical: 8,
-    borderRadius: 16,
-  },
-  legendContainer: {
-    marginTop: 16,
-    padding: 8,
-    borderRadius: 8,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderBottomWidth: 1,
-  },
-  legendLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  legendValue: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  balanceContainer: {
-    padding: 16,
-  },
-  filterContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginBottom: 8,
-  },
-  filterTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 12,
+  filterSection: {
+    marginBottom: 20,
   },
   filterButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-    borderRadius: 8,
+    marginBottom: 12,
+    gap: 8,
   },
   filterButton: {
     flex: 1,
     paddingVertical: 8,
-    paddingHorizontal: 2,
     borderRadius: 8,
-    marginHorizontal: 2,
     alignItems: 'center',
-    borderWidth: 1,
-  },
-  filterButtonActive: {
-    // backgroundColor applied dynamically
+    justifyContent: 'center',
   },
   filterButtonText: {
-    fontSize: 14,
-  },
-  filterButtonTextActive: {
-    fontWeight: '600',
+    fontSize: 13,
   },
   datePickerContainer: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 8,
+    gap: 8,
   },
   dateButton: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    marginHorizontal: 4,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
     borderWidth: 1,
   },
-  dateButtonText: {
-    fontSize: 14,
+  statsGrid: {
+    gap: 12,
+    marginBottom: 24,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  chartCard: {
+    padding: 16,
+    marginBottom: 20,
+  },
+  chartHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  chartTitle: {
+    fontSize: 16,
+    marginBottom: 4,
+  },
+  chartSubtitle: {
+    fontSize: 12,
+    opacity: 0.6,
+  },
+  chart: {
+    marginVertical: 8,
+    borderRadius: 16,
+    paddingHorizontal: 8,
+  },
+  balanceContainer: {
+    padding: 16,
+    marginBottom: 20,
+  },
+  legendContainer: {
+    marginTop: 16,
+    gap: 8,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0', // Light border, ideally should use theme
+  },
+  legendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  legendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  legendLabel: {
+    flex: 1,
+    fontSize: 13,
+    opacity: 0.8,
   },
 });

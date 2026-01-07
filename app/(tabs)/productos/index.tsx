@@ -8,7 +8,6 @@ import { categoryService } from '@/services/categoryService';
 import { tagService } from '@/services/tagService';
 import { useTheme } from '@/contexts/ThemeContext';
 import ProductItem from '../../../components/ProductItem';
-import { useIsFocused } from '@react-navigation/native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import XLSX from 'xlsx';
@@ -38,7 +37,6 @@ export default function ProductsScreen() {
   const [searchText, setSearchText] = useState('');
   const [searchQuery, setSearchQuery] = useState(''); // Nuevo estado para la búsqueda activa
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const isFocused = useIsFocused();
   const flatListRef = React.useRef<FlatList>(null);
   const isFetchingRef = useRef(false);
   const [pendingScroll, setPendingScroll] = useState<string | null>(null);
@@ -51,6 +49,7 @@ export default function ProductsScreen() {
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [pendingScrollIndex, setPendingScrollIndex] = useState<number | null>(null);
+  const loadDataRequestIdRef = useRef(0);
 
   
   // Infinite scroll
@@ -251,7 +250,6 @@ export default function ProductsScreen() {
 
   useEffect(() => {
     if (updatedProductId && dataReady) {
-      console.log('🔄 Producto actualizado detectado:', updatedProductId);
 
       setPage(1);
       setHasMore(true);
@@ -261,14 +259,12 @@ export default function ProductsScreen() {
       // Cargar la primera página
       loadData(activeFilter, 1, false).then(loadedProducts => {
         const updatedIndex = loadedProducts?.findIndex(p => p.id === updatedProductId) ?? -1;
-        console.log('Índice encontrado del producto:', updatedIndex);
 
         if (updatedIndex === -1) {
           // Producto no está en la página 1, cargás páginas hasta encontrarlo
           loadUntilIndexById(updatedProductId);
         } else {
           // Está en la página 1, scroll directo
-          console.log('Índice encontrado en la página:', page);
           setPendingScrollIndex(updatedIndex);
           setPendingScroll(updatedProductId);
         }
@@ -317,25 +313,24 @@ export default function ProductsScreen() {
     
   
   useEffect(() => {
-    // Solo resetear si no estamos en modo lowStock, ya que lowStock no usa categorías ni búsqueda
-    if (activeFilter !== 'lowStock') {
-      setPage(1);
-      setHasMore(true);
-      setProducts([]);
-      loadData(activeFilter, 1, false);
-    }
+    setPage(1);
+    setHasMore(true);
+    setProducts([]);
+    loadData(activeFilter, 1, false);
   }, [selectedCategory, searchQuery]);
   
 
   const loadData = async (
     filterType = 'all',
     pg = 1,
-    isRefresh = false
-  ) => {
+    isRefresh = false,
+    categoryOverride?: string | null
+  ): Promise<Product[] | undefined> => {
+    const requestId = ++loadDataRequestIdRef.current; // id para esta llamada
     try {
       setActiveFilter(filterType);
-  
-      // Flags de UI
+
+      // Flags UI
       if (pg === 1 && isRefresh) {
         setRefreshing(true);
       } else if (pg > 1) {
@@ -343,77 +338,125 @@ export default function ProductsScreen() {
       } else {
         setLoading(true);
       }
-  
-      let productsPage: Product[];
-      
-      // Manejar diferentes tipos de filtro
+
+      // Determinar categoría a usar (override si se pasa)
+      const categoryToUse = categoryOverride ?? selectedCategory ?? null;
+
+      // Llamada al servicio (RPC o lista normal)
+      let productsPage: Product[] = [];
       if (filterType === 'lowStock') {
-        // Para stock bajo, usar la función específica
         productsPage = await productService.getLowStockProducts(
           pg,
           PAGE_SIZE,
-          selectedCategory,
-          searchQuery
+          categoryToUse,
+          searchQuery || null
         );
       } else {
-        // Para filtros normales, usar getProducts con categoría y búsqueda
         productsPage = await productService.getProducts(
           pg,
           PAGE_SIZE,
-          selectedCategory,
-          searchQuery
+          categoryToUse,
+          searchQuery || undefined
         );
       }
-  
-      // Enriquecer con tags (igual que antes)
-      const productsWithTags = await Promise.all(
-        productsPage.map(async product => {
-          if (!product.id) return product;
-          const productTags = Array.isArray(product.tags) ? product.tags : [];
-          if (productTags.length) {
-            return {
-              ...product,
-              tagObjects: tags.filter(t => productTags.includes(t.id!))
-            };
-          }
-          const fetchedTags = await tagService.getTagsForProduct(product.id);
-          const tagIds = fetchedTags.map(t => t.id!).filter(Boolean);
-          productService.updateProductInCache(product.id, { ...product, tags: tagIds });
-          return { ...product, tags: tagIds, tagObjects: fetchedTags };
-        })
-      );
 
-      const indexedProducts = productsWithTags.map((product, index) => ({
-        ...product,
-        index: (pg - 1) * PAGE_SIZE + index + 1
+      // Si la respuesta llegó pero es stale (otra llamada posterior ya empezó), ignorarla.
+      if (loadDataRequestIdRef.current !== requestId) {
+        // no hacemos nada con esta respuesta
+        return undefined;
+      }
+
+      // Agregar índice local para UI (opcional)
+      const indexedProducts = productsPage.map((p, i) => ({
+        ...p,
+        index: (pg - 1) * PAGE_SIZE + i + 1
       }));
 
-  
-      // Append o reset según página, con deduplicación
-    setProducts(prev => {
-      if (pg === 1) {
-        return indexedProducts;
-      } else {
-        // Combinar productos previos con nuevos y deduplicar por ID
-        const allProducts = [...prev, ...indexedProducts];
-        return Array.from(new Map(allProducts.map(p => [p.id, p])).values());
-      }
-    });
-  
-      setHasMore(productsWithTags.length === PAGE_SIZE);
+      // Aplicar resultados al estado (append o reset) con deduplicación por id
+      setProducts(prev => {
+        if (pg === 1) {
+          return indexedProducts;
+        } else {
+          const all = [...prev, ...indexedProducts];
+          // dedupe manteniendo la última ocurrencia de cada id
+          const map = new Map<string, Product>();
+          for (const item of all) {
+            if (item && item.id) map.set(item.id, item);
+          }
+          return Array.from(map.values());
+        }
+      });
+
+      // Actualizaciones de paginación
+      setHasMore(productsPage.length === PAGE_SIZE);
       setPage(pg);
       if (pg === 1) setDataReady(true);
 
+      // --- Fetch de tags en background (no bloquear UI) ---
+      // Solo para productos que no tengan tagObjects (o tags)
+      (async () => {
+        // guardar lista de ids a consultar
+        const idsToFetch = indexedProducts
+          .filter(p => p && p.id && !(p as any).tagObjects && (!Array.isArray(p.tags) || p.tags.length === 0))
+          .map(p => p.id!) as string[];
+
+        if (idsToFetch.length === 0) return;
+
+        try {
+          // Hacemos fetch paralelo de tags por producto.
+          // Si tienes una RPC para tags por muchos ids sería mejor usarla aquí.
+          const promises = idsToFetch.map(async (pid) => {
+            try {
+              const fetched = await tagService.getTagsForProduct(pid);
+              return { pid, fetched };
+            } catch (err) {
+              console.warn('tag fetch failed for', pid, err);
+              return { pid, fetched: [] as Tag[] };
+            }
+          });
+
+          const results = await Promise.all(promises);
+
+          // Si entre tanto se lanzó otra carga, no aplicamos estos tags (evitar race)
+          if (loadDataRequestIdRef.current !== requestId) return;
+
+          // Actualizar estado por lotes: mantener inmutabilidad
+          setProducts(prev => {
+            // si ha cambiado radicalmente el listado (p. ej. pagina 1 reemplazó), igual hacemos merge por id
+            const map = new Map<string, Product>();
+            for (const p of prev) {
+              map.set(p.id!, { ...p });
+            }
+            for (const { pid, fetched } of results) {
+              const existing = map.get(pid);
+              if (existing) {
+                const tagIds = fetched.map(t => t.id).filter(Boolean);
+map.set(pid, { ...existing, tags: tagIds.filter((id): id is string => id !== undefined) } as Product);
+              }
+            }
+            return Array.from(map.values());
+          });
+
+        } catch (err) {
+          console.warn('Error fetching tags in background', err);
+        }
+      })();
+
+      // Retornar los productos indexados (útil para llamadas que esperan el resultado)
       return indexedProducts;
     } catch (error) {
-      console.error(error);
+      console.error('loadData error', error);
       Alert.alert('Error', 'No se pudieron cargar los productos');
+      return undefined;
     } finally {
-      setLoading(false);
-      setRefreshing(false);
-      setLoadingMore(false);
+      // Solo limpiar los flags si sigue siendo la última petición lanzada
+      if (loadDataRequestIdRef.current === requestId) {
+        setLoading(false);
+        setRefreshing(false);
+        setLoadingMore(false);
+      }
     }
-  };    
+  };
   
   const loadProducts = () => {
     loadData(activeFilter);
@@ -686,17 +729,13 @@ export default function ProductsScreen() {
       setLoading(true);
       const fetchedAllProducts = await productService.getAllProducts();
       setAllProducts(fetchedAllProducts);
-      console.log('Iniciando importación de archivo:', fileName);
       let csvContent = '';
       try {
         if (isXLSX) {
-          console.log('Leyendo archivo Excel como base64...');
-          const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+          const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
           const workbook = XLSX.read(base64, { type: 'base64' });
-          console.log('Hojas disponibles:', workbook.SheetNames);
           const sheet = workbook.Sheets[workbook.SheetNames[0]];
           csvContent = XLSX.utils.sheet_to_csv(sheet);
-          console.log('Datos convertidos a CSV:', csvContent.slice(0, 200) + '...');
         } else {
           csvContent = await FileSystem.readAsStringAsync(uri);
         }
@@ -706,7 +745,6 @@ export default function ProductsScreen() {
       }
       const lines = csvContent.split('\n').filter(line => line.trim() !== '');
 
-      console.log('Filas procesadas:', lines.length);
     if (lines.length === 0) {
         Alert.alert('Error', 'El archivo CSV está vacío.');
         setLoading(false);
@@ -714,7 +752,6 @@ export default function ProductsScreen() {
       }
 
       const headers = lines[0].split(',').map(h => h.trim().toUpperCase());
-      console.log('Encabezados detectados:', headers);
       if (!headers.includes('PRECIO POR UNIDAD')) {
         console.error('Falta columna PRECIO POR UNIDAD en headers:', headers);
         throw new Error('Columna PRECIO POR UNIDAD es requerida');
@@ -825,13 +862,13 @@ export default function ProductsScreen() {
 
           // Recalcular profit_margin si se actualizaron los precios y ambos están presentes
           if (updateData.cost_price !== undefined && updateData.selling_price !== undefined && updateData.cost_price > 0) {
-            updateData.profit_margin = ((updateData.selling_price - updateData.cost_price) / updateData.cost_price) * 100;
-          } else if (existingProduct.cost_price > 0 && updateData.selling_price !== undefined) {
+            updateData.profit_margin = ((updateData.unit_price - updateData.cost_price) / updateData.cost_price) * 100;
+          } else if (existingProduct.cost_price > 0 && updateData.unit_price !== undefined) {
             // Si solo se actualizó selling_price y cost_price ya existía
-            updateData.profit_margin = ((updateData.selling_price - existingProduct.cost_price) / existingProduct.cost_price) * 100;
+            updateData.profit_margin = ((updateData.unit_price - existingProduct.cost_price) / existingProduct.cost_price) * 100;
           } else if (existingProduct.selling_price > 0 && updateData.cost_price !== undefined && updateData.cost_price > 0) {
             // Si solo se actualizó cost_price y selling_price ya existía
-            updateData.profit_margin = ((existingProduct.selling_price - updateData.cost_price) / updateData.cost_price) * 100;
+            updateData.profit_margin = ((existingProduct.unit_price - updateData.cost_price) / updateData.cost_price) * 100;
           }
 
 
@@ -852,8 +889,8 @@ export default function ProductsScreen() {
             cantidad_por_caja: !isNaN(newCantidadPorCaja) ? newCantidadPorCaja : 1,
           };
 
-          if (newProduct.cost_price > 0 && newProduct.selling_price > 0) {
-            newProduct.profit_margin = ((newProduct.selling_price - newProduct.cost_price) / newProduct.cost_price) * 100;
+          if (newProduct.cost_price > 0 && newProduct.unit_price > 0) {
+            newProduct.profit_margin = ((newProduct.unit_price - newProduct.cost_price) / newProduct.cost_price) * 100;
           }
           productsToCreate.push(newProduct);
         }

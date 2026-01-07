@@ -37,11 +37,11 @@ export default function QuoteDetailScreen() {
 
   const handleStatusChange = async (newStatus: QuoteStatus) => {
     if (!quote) return;
-    
+
     try {
       setLoading(true);
       await quoteService.updateQuote(quote.id!, { status: newStatus });
-      
+
       // If converting to sale, use the dedicated method
       if (newStatus === 'converted') {
         await quoteService.convertQuoteToSale(quote.id!);
@@ -65,10 +65,10 @@ export default function QuoteDetailScreen() {
 
   const generateHtml = () => {
     if (!quote) return '';
-    
+
     const quoteDate = quote.date ? quote.date : new Date(quote.date);
-    const validUntil = quote.valid_until? quote.valid_until : new Date();
-    
+    const validUntil = quote.valid_until ? quote.valid_until : new Date();
+
     const itemsHtml = quote.items.map(item => `
       <tr>
         <td>${item.name}</td>
@@ -77,7 +77,7 @@ export default function QuoteDetailScreen() {
         <td style="text-align: right;">$${item.subtotal.toFixed(2)}</td>
       </tr>
     `).join('');
-    
+
     return `
       <!DOCTYPE html>
       <html>
@@ -210,7 +210,7 @@ export default function QuoteDetailScreen() {
   const handleShareQuote = async () => {
     try {
       if (!quote) return;
-      
+
       const message = `Presupuesto para ${quote.customer_name} por un total de $${quote.total.toFixed(2)}`;
       await Share.share({
         message,
@@ -227,7 +227,7 @@ export default function QuoteDetailScreen() {
       setLoading(true);
       const html = generateHtml();
       const { uri } = await Print.printToFileAsync({ html });
-      
+
       await Sharing.shareAsync(uri, {
         UTI: '.pdf',
         mimeType: 'application/pdf',
@@ -249,7 +249,7 @@ export default function QuoteDetailScreen() {
       default: return theme.textLight;
     }
   };
-  
+
   const getStatusText = (status: QuoteStatus) => {
     switch (status) {
       case 'pending': return i18n.t('quotes.status.pending');
@@ -285,16 +285,6 @@ export default function QuoteDetailScreen() {
 
   return (
     <>
-      <Stack.Screen 
-        options={{ 
-          title: i18n.t('quotes.detail'),
-          headerStyle: {
-            backgroundColor: theme.primary,
-          },
-          headerTintColor: theme.surface,
-        }} 
-      />
-      
       <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <View style={styles.cardHeader}>
@@ -303,14 +293,14 @@ export default function QuoteDetailScreen() {
               <Text style={styles.statusText}>{getStatusText(quote.status)}</Text>
             </View>
           </View>
-          
+
           <View style={styles.infoRow}>
             <Text style={[styles.infoLabel, { color: theme.textLight }]}>{i18n.t('quotes.date')}:</Text>
             <Text style={[styles.infoValue, { color: theme.text }]}>
               {format(quote.date instanceof Date ? quote.date : new Date(quote.date), 'dd/MM/yyyy')}
             </Text>
           </View>
-          
+
           {quote.valid_until && (
             <View style={styles.infoRow}>
               <Text style={[styles.infoLabel, { color: theme.textLight }]}>{i18n.t('quotes.validUntil')}:</Text>
@@ -320,9 +310,9 @@ export default function QuoteDetailScreen() {
             </View>
           )}
         </View>
-        
+
         <Text style={[styles.sectionTitle, { color: theme.text }]}>{i18n.t('quotes.items')}</Text>
-        
+
         {quote.items.map((item, index) => (
           <View key={index} style={[styles.itemCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <Text style={[styles.itemName, { color: theme.text }]}>{item.name}</Text>
@@ -336,12 +326,12 @@ export default function QuoteDetailScreen() {
             </View>
           </View>
         ))}
-        
+
         <View style={[styles.totalCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.totalLabel, { color: theme.textLight }]}>{i18n.t('common.total')}:</Text>
           <Text style={[styles.totalValue, { color: theme.primary }]}>${quote.total.toFixed(2)}</Text>
         </View>
-        
+
         {quote.notes && (
           <>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>{i18n.t('quotes.notes')}</Text>
@@ -350,7 +340,7 @@ export default function QuoteDetailScreen() {
             </View>
           </>
         )}
-        
+
         <View style={styles.actionsContainer}>
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: theme.primary }]}
@@ -359,7 +349,7 @@ export default function QuoteDetailScreen() {
             <Ionicons name="document-text-outline" size={20} color={theme.surface} />
             <Text style={[styles.actionButtonText, { color: theme.surface }]}>{i18n.t('quotes.exportPdf')}</Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: theme.secondary }]}
             onPress={handleShareQuote}
@@ -368,11 +358,11 @@ export default function QuoteDetailScreen() {
             <Text style={[styles.actionButtonText, { color: theme.surface }]}>{i18n.t('common.share')}</Text>
           </TouchableOpacity>
         </View>
-        
+
         {quote.status !== 'converted' && (
           <View style={styles.statusActionsContainer}>
             <Text style={[styles.statusActionsTitle, { color: theme.text }]}>{i18n.t('quotes.changeStatus')}:</Text>
-            
+
             <View style={styles.statusButtons}>
               {quote.status !== 'pending' && (
                 <TouchableOpacity
@@ -382,7 +372,7 @@ export default function QuoteDetailScreen() {
                   <Text style={styles.statusButtonText}>{i18n.t('quotes.status.pending')}</Text>
                 </TouchableOpacity>
               )}
-              
+
               {quote.status !== 'approved' && (
                 <TouchableOpacity
                   style={[styles.statusButton, { backgroundColor: theme.success }]}
@@ -391,7 +381,7 @@ export default function QuoteDetailScreen() {
                   <Text style={styles.statusButtonText}>{i18n.t('quotes.status.approved')}</Text>
                 </TouchableOpacity>
               )}
-              
+
               {quote.status !== 'rejected' && (
                 <TouchableOpacity
                   style={[styles.statusButton, { backgroundColor: theme.error }]}
@@ -400,7 +390,7 @@ export default function QuoteDetailScreen() {
                   <Text style={styles.statusButtonText}>{i18n.t('quotes.status.rejected')}</Text>
                 </TouchableOpacity>
               )}
-              
+
               {quote.status === 'pending' || quote.status === 'approved' || quote.status === 'rejected' && (
                 <TouchableOpacity
                   style={[styles.statusButton, { backgroundColor: theme.primary }]}

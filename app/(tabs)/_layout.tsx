@@ -14,7 +14,7 @@ import { router } from 'expo-router';
 
 export default function TabLayout() {
   const { locale } = useLanguage(); // Add this line
-  const { theme } = useTheme();  
+  const { theme } = useTheme();
   const HeaderIcon = ({ name, tintColor }: { name: any; tintColor?: string }) => (
     <View style={styles.headerIconContainer}>
       <Ionicons name={name} size={28} color={tintColor} />
@@ -28,14 +28,14 @@ export default function TabLayout() {
 
   const CustomDrawerContent = (props: any) => {
     return (
-      <DrawerContentScrollView 
+      <DrawerContentScrollView
         {...props}
         style={{ backgroundColor: theme.background }}
       >
 
         <DrawerItemList {...props} />
 
-        <View style={[styles.themeToggleContainer, {borderColor: theme.border}, {borderTopWidth: 1}]}>
+        <View style={[styles.themeToggleContainer, { borderColor: theme.border }, { borderTopWidth: 1 }]}>
           <ThemeToggle style={styles.themeToggle} />
         </View>
       </DrawerContentScrollView>
@@ -76,7 +76,7 @@ export default function TabLayout() {
                   onPress={() => router.back()}
                 />
               ),
-          })}
+        })}
         backBehavior="history"
       >
         {/* Home Screen */}
@@ -214,28 +214,14 @@ export default function TabLayout() {
         <Drawer.Screen
           name="presupuestos/[id]"
           options={{
-            title:'Detalle de presupuesto',
-            drawerItemStyle: { display: 'none' },
-          }}
-          />
-        <Drawer.Screen
-          name="productos/categoria-actualizar"
-          options={{
-            title: 'Actualizar por categoría',
-            drawerItemStyle: { display: 'none' },
-          }}
-        />
-        <Drawer.Screen
-          name="productos/bulk-edit"
-          options={{
-            title: 'Editar productos',
+            title: 'Detalle de presupuesto',
             drawerItemStyle: { display: 'none' },
           }}
         />
       </Drawer>
     </View>
-    );
-  }
+  );
+}
 
 
 const styles = StyleSheet.create({

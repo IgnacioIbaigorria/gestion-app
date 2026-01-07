@@ -6,7 +6,7 @@ export interface Product {
   description?: string;
   cost_price: number;
   selling_price: number;
-  quantity: number;
+  quantity: number; // Cantidad de cajas
   units: number; // Nuevo campo para unidades individuales
   profit_margin: number;
   unit_price: number;
