@@ -1,30 +1,22 @@
-import React from 'react';
+﻿import React from 'react';
 import { Drawer } from 'expo-router/drawer';
 import { Ionicons } from '@expo/vector-icons';
 import Colors from '../../constants/Colors';
 import { View, StyleSheet } from 'react-native';
-import i18n from '../../translations';
 import { useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLanguage } from '@/context/LanguageContext';
 import { DrawerContentScrollView, DrawerItemList } from '@react-navigation/drawer';
 import ThemeToggle from '@/components/ThemeToggle';
 import { useTheme } from '@/contexts/ThemeContext';
 import { router } from 'expo-router';
 
 export default function TabLayout() {
-  const { locale } = useLanguage(); // Add this line
   const { theme } = useTheme();
   const HeaderIcon = ({ name, tintColor }: { name: any; tintColor?: string }) => (
     <View style={styles.headerIconContainer}>
       <Ionicons name={name} size={28} color={tintColor} />
     </View>
   );
-
-  // Force re-render when locale changes
-  useEffect(() => {
-    // This will trigger a re-render when language changes
-  }, [locale]);
 
   const CustomDrawerContent = (props: any) => {
     return (
@@ -83,8 +75,8 @@ export default function TabLayout() {
         <Drawer.Screen
           name="index"
           options={{
-            title: i18n.t('common.home'),
-            drawerLabel: i18n.t('common.home'),
+            title: 'Inicio',
+            drawerLabel: 'Inicio',
             drawerIcon: ({ color }) => (
               <Ionicons name="home-outline" size={24} color={color} />
             ),
@@ -95,8 +87,8 @@ export default function TabLayout() {
         <Drawer.Screen
           name="productos/index"
           options={{
-            title: i18n.t('common.products'),
-            drawerLabel: i18n.t('common.products'),
+            title: 'Productos',
+            drawerLabel: 'Productos',
             drawerIcon: ({ color }) => (
               <Ionicons name="cube-outline" size={24} color={color} />
             ),
@@ -107,8 +99,8 @@ export default function TabLayout() {
         <Drawer.Screen
           name="ventas/index"
           options={{
-            title: i18n.t('common.sales'),
-            drawerLabel: i18n.t('common.sales'),
+            title: 'Ventas',
+            drawerLabel: 'Ventas',
             drawerIcon: ({ color }) => (
               <Ionicons name="cart-outline" size={24} color={color} />
             ),
@@ -119,8 +111,8 @@ export default function TabLayout() {
         <Drawer.Screen
           name="caja/index"
           options={{
-            title: i18n.t('common.cash'),
-            drawerLabel: i18n.t('common.cash'),
+            title: 'Caja',
+            drawerLabel: 'Caja',
             drawerIcon: ({ color }) => (
               <Ionicons name="cash-outline" size={24} color={color} />
             ),
@@ -130,8 +122,8 @@ export default function TabLayout() {
         <Drawer.Screen
           name="productos/tags/index"
           options={{
-            title: i18n.t('tags.title'),
-            drawerLabel: i18n.t('tags.title'),
+            title: 'Etiquetas',
+            drawerLabel: 'Etiquetas',
             drawerIcon: ({ color }) => (
               <Ionicons name="pricetags-outline" size={24} color={color} />
             ),
@@ -140,8 +132,8 @@ export default function TabLayout() {
         <Drawer.Screen
           name="productos/categorias/index"
           options={{
-            title: i18n.t('common.categories'),
-            drawerLabel: i18n.t('common.categories'),
+            title: 'Categorías',
+            drawerLabel: 'Categorías',
             drawerIcon: ({ color }) => (
               <Ionicons name="folder-outline" size={24} color={color} />
             ),
@@ -150,8 +142,8 @@ export default function TabLayout() {
         <Drawer.Screen
           name="estadisticas/index"
           options={{
-            title: i18n.t('common.stats'),
-            drawerLabel: i18n.t('common.stats'),
+            title: 'Estadísticas',
+            drawerLabel: 'Estadísticas',
             drawerIcon: ({ color }) => (
               <Ionicons name="stats-chart" size={24} color={color} />
             ),
@@ -161,8 +153,8 @@ export default function TabLayout() {
         <Drawer.Screen
           name="presupuestos/index"
           options={{
-            title: i18n.t('quotes.title'),
-            drawerLabel: i18n.t('quotes.title'),
+            title: 'Presupuestos',
+            drawerLabel: 'Presupuestos',
             drawerIcon: ({ color }) => (
               <Ionicons name="document-text-outline" size={24} color={color} />
             ),
@@ -172,21 +164,21 @@ export default function TabLayout() {
         <Drawer.Screen
           name="productos/nuevo"
           options={{
-            title: i18n.t('products.newEditProduct'),
+            title: 'Producto',
             drawerItemStyle: { display: 'none' },
           }}
         />
         <Drawer.Screen
           name="productos/[id]"
           options={{
-            title: i18n.t('products.detail.title'),
+            title: 'Detalle Producto',
             drawerItemStyle: { display: 'none' },
           }}
         />
         <Drawer.Screen
           name="ventas/nueva"
           options={{
-            title: i18n.t('sales.new'),
+            title: 'Nueva Venta',
             drawerItemStyle: { display: 'none' },
           }}
         />

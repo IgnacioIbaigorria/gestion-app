@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndi
 import { Ionicons } from '@expo/vector-icons';
 import { categoryService } from '../../../../services/categoryService';
 import { Category } from '../../../../models/types';
-import i18n from '../../../../translations';
 import ColorPicker from '../../../../components/ColorPicker';
 import { useTheme } from '@/contexts/ThemeContext';
 

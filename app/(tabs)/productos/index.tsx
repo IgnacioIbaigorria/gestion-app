@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, ScrollView, TextInput, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, ScrollView, TextInput, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { productService } from '../../../services/productService';
@@ -23,12 +24,13 @@ export default function ProductsScreen() {
   const [loading, setLoading] = useState<boolean>(true);
   const [loadingMore, setLoadingMore] = useState<boolean>(true);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [tags, setTags] = useState<Tag[]>([]); // Add state for tags
+  const [tags, setTags] = useState<Tag[]>([]); // State for all tags
+  const [allTags, setAllTags] = useState<Tag[]>([]); // All tags pre-loaded
   const [dataReady, setDataReady] = useState<boolean>(false); // Add state to track when all data is ready
-  const { filter, source, updatedProductId } = useLocalSearchParams<{ 
-    filter: string, 
+  const { filter, source, updatedProductId } = useLocalSearchParams<{
+    filter: string,
     source: string,
-    updatedProductId: string 
+    updatedProductId: string
   }>();
   const [activeFilter, setActiveFilter] = useState(
     filter === 'lowStock' && source === 'dashboard' ? 'lowStock' : 'all'
@@ -37,7 +39,7 @@ export default function ProductsScreen() {
   const [searchText, setSearchText] = useState('');
   const [searchQuery, setSearchQuery] = useState(''); // Nuevo estado para la búsqueda activa
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const flatListRef = React.useRef<FlatList>(null);
+  const flatListRef = React.useRef<any>(null);
   const isFetchingRef = useRef(false);
   const [pendingScroll, setPendingScroll] = useState<string | null>(null);
   const [highlightedProductId, setHighlightedProductId] = useState<string | null>(null);
@@ -51,12 +53,12 @@ export default function ProductsScreen() {
   const [pendingScrollIndex, setPendingScrollIndex] = useState<number | null>(null);
   const loadDataRequestIdRef = useRef(0);
 
-  
+
   // Infinite scroll
   const LoadingFooter = React.memo(() => {
     // Mostrar el footer si está cargando MÁS datos O si no hay más datos pero está en proceso
     if (!hasMore && !loadingMore) return null;
-    
+
     // Mostrar loading si está cargando o si está cerca del final
     if (loadingMore || (hasMore && !isFetchingRef.current)) {
       return (
@@ -66,14 +68,14 @@ export default function ProductsScreen() {
         </View>
       );
     }
-    
+
     return null;
   });
-    
+
   // Optimizar el renderItem con React.memo
   const renderProductItem = React.useCallback(({ item }: { item: Product & { tagObjects?: Tag[] } }) => (
-    <ProductItem 
-      product={item} 
+    <ProductItem
+      product={item}
       onDelete={handleDeleteProduct}
       highlighted={item.id === highlightedProductId}
       selected={selectedProducts.includes(item.id!)}
@@ -93,18 +95,29 @@ export default function ProductsScreen() {
       }}
     />
   ), [highlightedProductId, selectedProducts, selectionMode]);
-  
+
+  // Enriquecer productos con metadata para evitar llamadas async en ProductItem
+  const enrichedProducts = useMemo(() => {
+    if (!allTags.length || !categories.length) return products;
+
+    return products.map(p => ({
+      ...p,
+      categoryObject: categories.find(c => c.id === p.category_id),
+      tagObjects: allTags.filter(t => p.tags?.includes(t.id!))
+    }));
+  }, [products, categories, allTags]);
+
   // Modificar handleLoadMore para ser más agresivo
   const handleLoadMore = useCallback(() => {
     if (!hasMore || isFetchingRef.current || loadingMore) return;
-        
+
     // Activar loading ANTES de cualquier operación asíncrona
     setLoadingMore(true);
     isFetchingRef.current = true;
-    
+
     // Calcular la próxima página basada en la cantidad de productos ya cargados
     const nextPage = Math.floor(products.length / PAGE_SIZE) + 1;
-    
+
     // Usar setTimeout para asegurar que el estado se actualice inmediatamente
     setTimeout(() => {
       loadData(activeFilter, nextPage, false)
@@ -114,20 +127,20 @@ export default function ProductsScreen() {
         });
     }, 0);
   }, [hasMore, activeFilter, products.length, loadingMore]);
-  
-    // Add viewability configuration
+
+  // Add viewability configuration
   const viewabilityConfig = React.useRef({
     itemVisiblePercentThreshold: 10,
     minimumViewTime: 100,
   }).current;
-  
+
   // Add callback for viewable items changed
   const handleViewableItemsChanged = React.useCallback(({ viewableItems }: { viewableItems: Array<{ item: Product }> }) => {
     if (!pendingScroll) return;
-    
+
     // Check if our target product is among the viewable items
     const isTargetVisible = viewableItems.some(item => item.item.id === pendingScroll);
-    
+
     if (isTargetVisible) {
       // Highlight the product temporarily
       setHighlightedProductId(pendingScroll);
@@ -135,10 +148,10 @@ export default function ProductsScreen() {
       setPendingScroll(null);
       return;
     }
-    
+
     // Find the index of the product we want to scroll to
     const productIndex = products.findIndex(p => p.id === pendingScroll);
-    
+
     if (productIndex !== -1) {
       try {
         // First scroll to a position near the target to ensure items are rendered
@@ -146,7 +159,7 @@ export default function ProductsScreen() {
           offset: Math.max(0, (productIndex - 2) * 100), // Approximate item height
           animated: true
         });
-        
+
       } catch (error) {
         console.error("Error scrolling to offset:", error);
       }
@@ -179,11 +192,11 @@ export default function ProductsScreen() {
         setDataReady(true);
         return;
       }
-      
+
       // Cargar la primera página
       const firstPage = await loadData(activeFilter, 1, false);
       let foundIndex = firstPage?.findIndex(p => p.id === productId) ?? -1;
-      
+
       if (foundIndex !== -1) {
         // Producto encontrado en la primera página
         setPendingScrollIndex(foundIndex);
@@ -191,25 +204,25 @@ export default function ProductsScreen() {
         setDataReady(true);
         return;
       }
-      
+
       // Si no está en la primera página, cargar más páginas con un tamaño mayor
       const BATCH_SIZE = 3; // Cargar 3 páginas a la vez
       let currentPage = 2;
-      
+
       while (true) {
         // Cargar varias páginas a la vez
         const promises = [];
         for (let i = 0; i < BATCH_SIZE; i++) {
           promises.push(loadData(activeFilter, currentPage + i, false));
         }
-        
+
         const results = await Promise.all(promises);
         const newProducts = results.flat().filter(Boolean);
-        
+
         if (newProducts.length === 0) {
           break;
         }
-        
+
         // Combinar y deduplicar
         const allProducts = [...products, ...newProducts];
         const deduplicationMap = new Map<string, Product>();
@@ -223,9 +236,9 @@ export default function ProductsScreen() {
 
         const deduplicated = Array.from(deduplicationMap.values());
         setProducts(deduplicated);
-        
+
         foundIndex = deduplicated.findIndex(p => p.id === productId);
-        
+
         if (foundIndex !== -1) {
           setPendingScrollIndex(foundIndex);
           setPendingScroll(productId);
@@ -234,10 +247,10 @@ export default function ProductsScreen() {
           setHasMore(newProducts.length === PAGE_SIZE * BATCH_SIZE);
           break;
         }
-        
+
         currentPage += BATCH_SIZE;
       }
-      
+
       if (foundIndex === -1) {
         console.warn('Producto no encontrado después de cargar páginas.');
         setDataReady(true);
@@ -255,7 +268,7 @@ export default function ProductsScreen() {
       setHasMore(true);
       setProducts([]);
       setDataReady(false);
-      
+
       // Cargar la primera página
       loadData(activeFilter, 1, false).then(loadedProducts => {
         const updatedIndex = loadedProducts?.findIndex(p => p.id === updatedProductId) ?? -1;
@@ -269,7 +282,7 @@ export default function ProductsScreen() {
           setPendingScroll(updatedProductId);
         }
       });
-      
+
       // Limpiar el parámetro URL
       router.replace('/productos');
     }
@@ -289,19 +302,24 @@ export default function ProductsScreen() {
     }, 10000);
   };
 
-    
+
+  // Pre-cargar metadata (categorías y tags) al inicio
   useEffect(() => {
-    const fetchCategories = async () => {
+    const fetchMetadata = async () => {
       try {
-        const cats = await categoryService.getAllCategories();
+        const [cats, fetchedTags] = await Promise.all([
+          categoryService.getAllCategories(),
+          tagService.getAllTags()
+        ]);
         setCategories(cats);
+        setAllTags(fetchedTags);
       } catch (error) {
-        console.error('Error cargando categorías:', error);
+        console.error('Error cargando metadata:', error);
       }
     };
-    fetchCategories();
-  }, []);  
-  
+    fetchMetadata();
+  }, []);
+
   useEffect(() => {
     const initialFilter = filter === 'lowStock' && source === 'dashboard' ? 'lowStock' : 'all';
     setPage(1);
@@ -309,16 +327,16 @@ export default function ProductsScreen() {
     setProducts([]);
     loadData(initialFilter, 1, false);
   }, [filter, source]);
-  
-    
-  
+
+
+
   useEffect(() => {
     setPage(1);
     setHasMore(true);
     setProducts([]);
     loadData(activeFilter, 1, false);
   }, [selectedCategory, searchQuery]);
-  
+
 
   const loadData = async (
     filterType = 'all',
@@ -431,7 +449,7 @@ export default function ProductsScreen() {
               const existing = map.get(pid);
               if (existing) {
                 const tagIds = fetched.map(t => t.id).filter(Boolean);
-map.set(pid, { ...existing, tags: tagIds.filter((id): id is string => id !== undefined) } as Product);
+                map.set(pid, { ...existing, tags: tagIds.filter((id): id is string => id !== undefined) } as Product);
               }
             }
             return Array.from(map.values());
@@ -457,7 +475,7 @@ map.set(pid, { ...existing, tags: tagIds.filter((id): id is string => id !== und
       }
     }
   };
-  
+
   const loadProducts = () => {
     loadData(activeFilter);
   };
@@ -471,14 +489,14 @@ map.set(pid, { ...existing, tags: tagIds.filter((id): id is string => id !== und
     setSearchQuery('');
   };
 
-  const handleDeleteProduct = (id: string) => {
+  const handleDeleteProduct = useCallback((id: string) => {
     Alert.alert(
       'Eliminar producto',
       '¿Estás seguro de que deseas eliminar este producto?',
       [
         { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Eliminar', 
+        {
+          text: 'Eliminar',
           style: 'destructive',
           onPress: async () => {
             try {
@@ -493,7 +511,7 @@ map.set(pid, { ...existing, tags: tagIds.filter((id): id is string => id !== und
         },
       ]
     );
-  };
+  }, [activeFilter]);
   const CategoryFilter = () => (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryFilter}>
       <TouchableOpacity
@@ -517,9 +535,9 @@ map.set(pid, { ...existing, tags: tagIds.filter((id): id is string => id !== und
           style={[
             styles.categoryChip,
             selectedCategory === category.id && styles.selectedCategoryChip,
-            { 
+            {
               backgroundColor: theme.surface,
-              borderColor: selectedCategory === category.id ? theme.primary : theme.border 
+              borderColor: selectedCategory === category.id ? theme.primary : theme.border
             }
           ]}
           onPress={() => setSelectedCategory(category.id || null)}
@@ -535,17 +553,17 @@ map.set(pid, { ...existing, tags: tagIds.filter((id): id is string => id !== und
     </ScrollView>
   );
 
-  if (refreshing || loading || !dataReady ) {
+  if (refreshing || loading || !dataReady) {
 
-      return (
-        <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
-          <ActivityIndicator size="large" color={theme.primary} />
-          <Text style={[styles.loadingText, { color: theme.textLight }]}>
-              Cargando productos...
-          </Text>
-        </View>
-      );
-    }
+    return (
+      <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+        <Text style={[styles.loadingText, { color: theme.textLight }]}>
+          Cargando productos...
+        </Text>
+      </View>
+    );
+  }
 
   // --- NUEVA FUNCIÓN DE EXPORTACIÓN A PDF ---
   const exportProductsToPDF = async () => {
@@ -740,12 +758,12 @@ map.set(pid, { ...existing, tags: tagIds.filter((id): id is string => id !== und
           csvContent = await FileSystem.readAsStringAsync(uri);
         }
       } catch (innerError) {
-          console.error('Error parseando CSV/XLSX:', innerError);
-          throw innerError;
+        console.error('Error parseando CSV/XLSX:', innerError);
+        throw innerError;
       }
       const lines = csvContent.split('\n').filter(line => line.trim() !== '');
 
-    if (lines.length === 0) {
+      if (lines.length === 0) {
         Alert.alert('Error', 'El archivo CSV está vacío.');
         setLoading(false);
         return;
@@ -793,10 +811,10 @@ map.set(pid, { ...existing, tags: tagIds.filter((id): id is string => id !== und
         const cantidadPorCajaStr = columns[cantidadPorCajaColIndex]?.trim();
         const precioPorUnidadStr = columns[precioPorUnidadColIndex]?.trim();
         const precioPorCajaStr = columns[precioPorCajaColIndex]?.trim();
-        const stockStr = columns [stockColIndex]?.trim();
-        const stockMinimoStr = columns [stockMinimoColIndex]?.trim();
-        const precioCostoStr = columns [precioCostoColIndex]?.trim();
-        const unidadesStr = columns [unidadesColIndex]?.trim();
+        const stockStr = columns[stockColIndex]?.trim();
+        const stockMinimoStr = columns[stockMinimoColIndex]?.trim();
+        const precioCostoStr = columns[precioCostoColIndex]?.trim();
+        const unidadesStr = columns[unidadesColIndex]?.trim();
 
         if (!productName) {
           console.warn(`Fila ignorada por nombre incompleto: ${row}`);
@@ -806,7 +824,7 @@ map.set(pid, { ...existing, tags: tagIds.filter((id): id is string => id !== und
         let currentCategory: Category | undefined = undefined;
         if (categoryName && categoryName.trim() !== '') {
           const upperCategoryName = categoryName.trim().toUpperCase();
-        
+
           if (categoriesMap.has(upperCategoryName)) {
             currentCategory = categoriesMap.get(upperCategoryName);
           } else {
@@ -831,7 +849,7 @@ map.set(pid, { ...existing, tags: tagIds.filter((id): id is string => id !== und
             }
           }
         }
-        
+
         const existingProduct = allProducts.find(p => p.name.toUpperCase() === productName.toUpperCase());
 
         const newCantidadPorCaja = parseInt(cantidadPorCajaStr, 10);
@@ -917,8 +935,8 @@ map.set(pid, { ...existing, tags: tagIds.filter((id): id is string => id !== und
         <View style={styles.headerSection}>
           <View style={styles.searchContainer}>
             <TextInput
-              style={[styles.searchInput, { 
-                backgroundColor: theme.surface, 
+              style={[styles.searchInput, {
+                backgroundColor: theme.surface,
                 borderColor: theme.primaryLight,
                 color: theme.text
               }]}
@@ -930,8 +948,8 @@ map.set(pid, { ...existing, tags: tagIds.filter((id): id is string => id !== und
               returnKeyType="search"
             />
             {/* Botón de búsqueda */}
-            <TouchableOpacity 
-              style={[styles.searchButton, { 
+            <TouchableOpacity
+              style={[styles.searchButton, {
                 backgroundColor: theme.primary
               }]}
               onPress={handleSearch}
@@ -940,8 +958,8 @@ map.set(pid, { ...existing, tags: tagIds.filter((id): id is string => id !== und
             </TouchableOpacity>
             {/* Botón para limpiar búsqueda */}
             {searchQuery && (
-              <TouchableOpacity 
-                style={[styles.clearButton, { 
+              <TouchableOpacity
+                style={[styles.clearButton, {
                   backgroundColor: theme.error
                 }]}
                 onPress={handleClearSearch}
@@ -953,9 +971,9 @@ map.set(pid, { ...existing, tags: tagIds.filter((id): id is string => id !== und
               onPress={exportProductsToPDF}
               style={[
                 styles.filterButton, {
-                backgroundColor: theme.surface,
-                borderColor: theme.primaryLight 
-              }]}
+                  backgroundColor: theme.surface,
+                  borderColor: theme.primaryLight
+                }]}
             >
               <Ionicons name="download-outline" size={24} color={theme.primary} />
             </TouchableOpacity>
@@ -964,9 +982,9 @@ map.set(pid, { ...existing, tags: tagIds.filter((id): id is string => id !== und
               onPress={handleImportCSV}
               style={[
                 styles.filterButton, {
-                backgroundColor: theme.surface,
-                borderColor: theme.primaryLight 
-              }]}
+                  backgroundColor: theme.surface,
+                  borderColor: theme.primaryLight
+                }]}
             >
               <Ionicons name="cloud-upload-outline" size={24} color={theme.primary} />
             </TouchableOpacity>
@@ -974,49 +992,26 @@ map.set(pid, { ...existing, tags: tagIds.filter((id): id is string => id !== und
 
           <CategoryFilter />
         </View>
-        <FlatList
+        <FlashList
           ref={flatListRef}
-          data={products}
+          data={enrichedProducts}
           refreshing={refreshing}
-          onRefresh={() => loadData(activeFilter, 1, true)}
-          keyExtractor={(item) => item.id!}
-          initialNumToRender={10}
-          onEndReached={handleLoadMore}
-          getItemLayout={(data, index) => ({
-            length: 128,
-            offset: 128 * index,
-            index,
-          })}
-          onEndReachedThreshold={0.1} // Puedes probar con 0.2 o 0.3 para que se dispare antes
-          maxToRenderPerBatch={10}
-          windowSize={5}
-          removeClippedSubviews={true}
-          keyboardShouldPersistTaps="never"
-          keyboardDismissMode='on-drag'
-          onScrollBeginDrag={() => Keyboard.dismiss()}
-          onViewableItemsChanged={handleViewableItemsChanged}
-          viewabilityConfig={viewabilityConfig}
-          ListFooterComponent={<LoadingFooter />}
-          onContentSizeChange={() => {
-            if (pendingScrollIndex !== null) {
-              scrollToPendingIndex(pendingScrollIndex);
-            }
+          onRefresh={() => {
+            loadData(activeFilter, 1, true);
           }}
-          contentContainerStyle={[
-            styles.listContainer,
-            products.length === 1 && styles.singleItemList
-          ]}
+          keyExtractor={(item) => item.id!}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.1}
+          keyboardShouldPersistTaps="never"
+          onScrollBeginDrag={() => Keyboard.dismiss()}
+          ListFooterComponent={<LoadingFooter />}
           renderItem={renderProductItem}
           ListEmptyComponent={
-            products.length === 0 && products.length > 0 ? (
-              <Text style={[styles.emptyText, { color: theme.textLight }]}>
-                No se encontraron productos con ese filtro.
-              </Text>
-            ) : (
+            enrichedProducts.length === 0 ? (
               <Text style={[styles.emptyText, { color: theme.textLight }]}>
                 No hay productos para mostrar.
               </Text>
-            )
+            ) : null
           }
         />
         <TouchableOpacity
@@ -1025,49 +1020,6 @@ map.set(pid, { ...existing, tags: tagIds.filter((id): id is string => id !== und
         >
           <Ionicons name="add" size={30} color={theme.surface} />
         </TouchableOpacity>
-      {selectionMode && selectedProducts.length > 0 && (
-        <View style={{
-          position: 'absolute',
-          bottom: 90,
-          left: 0,
-          right: 0,
-          alignItems: 'center',
-          zIndex: 10,
-        }}>
-          <TouchableOpacity
-            style={{
-              backgroundColor: theme.primary,
-              padding: 16,
-              borderRadius: 8,
-              flexDirection: 'row',
-              alignItems: 'center',
-            }}
-            onPress={() => {
-              // Navegar a la pantalla de edición masiva, pasando los IDs seleccionados
-              router.push({
-                pathname: '/productos/bulk-edit',
-                params: { ids: selectedProducts.join(',') }
-              });
-              setSelectionMode(false);
-              setSelectedProducts([]);
-            }}
-          >
-            <Ionicons name="create-outline" size={22} color="#fff" />
-            <Text style={{ color: '#fff', marginLeft: 8, fontWeight: 'bold' }}>
-              Modificar precio ({selectedProducts.length})
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={{ marginTop: 8 }}
-            onPress={() => {
-              setSelectionMode(false);
-              setSelectedProducts([]);
-            }}
-          >
-            <Text style={{ color: theme.error }}>Cancelar</Text>
-          </TouchableOpacity>
-        </View>
-      )}
       </View>
     </View>
   );
@@ -1080,10 +1032,10 @@ const styles = StyleSheet.create({
   },
   innerContainer: {
     flex: 1,
-    padding: 16, 
+    padding: 16,
   },
   headerSection: {
-   zIndex: 1, 
+    zIndex: 1,
   },
   loadingContainer: {
     flex: 1,

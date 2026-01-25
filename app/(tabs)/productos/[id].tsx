@@ -4,7 +4,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { productService } from '../../../services/productService';
 import { Category, Product } from '../../../models/types';
-import i18n from '../../../translations';
 import { Tag } from '../../../models/types';
 import { tagService } from '../../../services/tagService';
 import { categoryService } from '@/services/categoryService';
@@ -27,7 +26,7 @@ export default function ProductDetailScreen() {
       loadCategories();
     }
   }, [id, isFocused]);
-    
+
   const loadCategories = async () => {
     try {
       const categoriesData = await categoryService.getAllCategories();
@@ -44,7 +43,7 @@ export default function ProductDetailScreen() {
       const productData = await productService.getProductById(productId);
       setProduct(productData);
     } catch (error) {
-      Alert.alert(i18n.t('common.error'), i18n.t('products.detail.errorLoading'));
+      Alert.alert('Error', 'Error al cargar el producto');
       console.error(error);
       router.back();
     } finally {
@@ -65,20 +64,20 @@ export default function ProductDetailScreen() {
     if (!product) return;
 
     Alert.alert(
-      i18n.t('products.confirmDelete'),
-      i18n.t('products.confirmDeleteMessage'),
+      'Confirmar eliminación',
+      '¿Estás seguro de eliminar este producto?',
       [
-        { text: i18n.t('common.cancel'), style: 'cancel' },
-        { 
-          text: i18n.t('common.delete'), 
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
           style: 'destructive',
           onPress: async () => {
             try {
               await productService.deleteProduct(product.id!);
-              Alert.alert(i18n.t('common.success'), i18n.t('products.successMessage'));
+              Alert.alert('Éxito', 'El producto ha sido eliminado correctamente');
               router.back();
             } catch (error) {
-              Alert.alert(i18n.t('common.error'), i18n.t('products.errorMessage'));
+              Alert.alert('Error', 'Error al eliminar el producto');
               console.error(error);
             }
           }
@@ -105,7 +104,7 @@ export default function ProductDetailScreen() {
       <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={theme.primary} />
         <Text style={[styles.loadingText, { color: theme.textLight }]}>
-          {i18n.t('products.detail.loading')}
+          Cargando...
         </Text>
       </View>
     );
@@ -115,14 +114,14 @@ export default function ProductDetailScreen() {
     return (
       <View style={[styles.errorContainer, { backgroundColor: theme.background }]}>
         <Text style={[styles.errorText, { color: theme.error }]}>
-          {i18n.t('products.detail.notFound')}
+          Producto no encontrado
         </Text>
-        <TouchableOpacity 
-          style={[styles.backButton, { backgroundColor: theme.primary }]} 
+        <TouchableOpacity
+          style={[styles.backButton, { backgroundColor: theme.primary }]}
           onPress={() => router.back()}
         >
           <Text style={[styles.backButtonText, { color: theme.surface }]}>
-            {i18n.t('common.back')}
+            Volver
           </Text>
         </TouchableOpacity>
       </View>
@@ -133,11 +132,11 @@ export default function ProductDetailScreen() {
     <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={[styles.card, { backgroundColor: theme.surface }]}>
         <Text style={[styles.title, { color: theme.text }]}>{product.name}</Text>
-        
+
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { 
+          <Text style={[styles.sectionTitle, {
             color: theme.primary,
-            borderBottomColor: theme.primaryLight 
+            borderBottomColor: theme.primaryLight
           }]}>
             Información de precio
           </Text>
@@ -176,9 +175,9 @@ export default function ProductDetailScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { 
+          <Text style={[styles.sectionTitle, {
             color: theme.primary,
-            borderBottomColor: theme.primaryLight 
+            borderBottomColor: theme.primaryLight
           }]}>
             Inventario
           </Text>
@@ -209,21 +208,21 @@ export default function ProductDetailScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { 
+          <Text style={[styles.sectionTitle, {
             color: theme.primary,
-            borderBottomColor: theme.primaryLight 
+            borderBottomColor: theme.primaryLight
           }]}>
-            {i18n.t('products.detail.tags')}
+            Etiquetas
           </Text>
           <View style={styles.tagsContainer}>
             {product.tags && product.tags.length > 0 ? (
               product.tags.map((tagId) => {
                 const tag = tags.find(t => t.id === tagId);
                 return tag ? (
-                  <View 
-                    key={tagId} 
+                  <View
+                    key={tagId}
                     style={[
-                      styles.tag, 
+                      styles.tag,
                       { backgroundColor: tag.color || theme.primary }
                     ]}
                   >
@@ -233,18 +232,18 @@ export default function ProductDetailScreen() {
               })
             ) : (
               <Text style={[styles.noTagsText, { color: theme.textLight }]}>
-                {i18n.t('products.noTags')}
+                No hay etiquetas
               </Text>
             )}
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { 
+          <Text style={[styles.sectionTitle, {
             color: theme.primary,
-            borderBottomColor: theme.primaryLight 
+            borderBottomColor: theme.primaryLight
           }]}>
-            {i18n.t('products.detail.category')}
+            Categoría
           </Text>
           {product.category_id ? (
             <View style={styles.categoryContainer}>
@@ -269,29 +268,29 @@ export default function ProductDetailScreen() {
             </View>
           ) : (
             <Text style={[styles.noTagsText, { color: theme.textLight }]}>
-              {i18n.t('products.noCategory')}
+              No hay categoría
             </Text>
           )}
         </View>
 
         <View style={styles.buttonContainer}>
-          <TouchableOpacity 
-            style={[styles.editButton, { backgroundColor: theme.primary }]} 
+          <TouchableOpacity
+            style={[styles.editButton, { backgroundColor: theme.primary }]}
             onPress={handleEdit}
           >
             <Ionicons name="create-outline" size={20} color={theme.surface} />
             <Text style={[styles.buttonText, { color: theme.surface }]}>
-              {i18n.t('common.edit')}
+              Editar
             </Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.deleteButton, { backgroundColor: theme.error }]} 
+
+          <TouchableOpacity
+            style={[styles.deleteButton, { backgroundColor: theme.error }]}
             onPress={handleDelete}
           >
             <Ionicons name="trash-outline" size={20} color={theme.surface} />
             <Text style={[styles.buttonText, { color: theme.surface }]}>
-              {i18n.t('common.delete')}
+              Eliminar
             </Text>
           </TouchableOpacity>
         </View>

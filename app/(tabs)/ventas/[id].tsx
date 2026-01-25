@@ -6,7 +6,6 @@ import { salesService } from '../../../services/salesService';
 import { Sale } from '../../../models/types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import i18n from '../../../translations';
 import { useTheme } from '@/contexts/ThemeContext';
 // Add this import
 import { receiptService } from '../../../services/receiptService';
@@ -27,54 +26,54 @@ export default function SaleDetailScreen() {
     }
   }, [id]);
 
-const loadSale = async (saleId: string) => {
-  try {
-    setLoading(true);
-    const saleData = await salesService.getSaleById(saleId);
-    setSale(saleData);
+  const loadSale = async (saleId: string) => {
+    try {
+      setLoading(true);
+      const saleData = await salesService.getSaleById(saleId);
+      setSale(saleData);
 
-    // Calcular subtotal
-    const total = saleData?.items.reduce((acc: number, item: any) => acc + item.subtotal, 0) ?? 0;
-    setSubTotal(total);
+      // Calcular subtotal
+      const total = saleData?.items.reduce((acc: number, item: any) => acc + item.subtotal, 0) ?? 0;
+      setSubTotal(total);
 
-    // Obtener los productIds de la venta
-    const productIds = saleData?.items.map((item: any) => item.productId) ?? [];
+      // Obtener los productIds de la venta
+      const productIds = saleData?.items.map((item: any) => item.productId) ?? [];
 
-    // Consultar productos en Supabase
-    const { data: products, error } = await supabase
-      .from('products')
-      .select('id, is_deleted')
-      .in('id', productIds);
+      // Consultar productos en Supabase
+      const { data: products, error } = await supabase
+        .from('products')
+        .select('id, is_deleted')
+        .in('id', productIds);
 
-    if (error) throw error;
+      if (error) throw error;
 
-    // Convertir a mapa para lookup rápido
-    const map: Record<string, boolean> = {};
-    for (const product of products ?? []) {
-      map[product.id] = product.is_deleted ?? false;
+      // Convertir a mapa para lookup rápido
+      const map: Record<string, boolean> = {};
+      for (const product of products ?? []) {
+        map[product.id] = product.is_deleted ?? false;
+      }
+
+      setProductsMap(map);
+
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo cargar la venta');
+      console.error(error);
+      router.back();
+    } finally {
+      setLoading(false);
     }
-
-    setProductsMap(map);
-
-  } catch (error) {
-    Alert.alert(i18n.t('common.error'), i18n.t('sales.detail.errorLoading'));
-    console.error(error);
-    router.back();
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   // Add this function to handle printing
   const handlePrintReceipt = async () => {
     if (!sale) return;
-    
+
     try {
       setPrintLoading(true);
-      
+
       // Generate PDF using receiptService
       const pdfUri = await receiptService.generatePDF(sale);
-      
+
       // Share the PDF
       await receiptService.sharePDF(pdfUri);
     } catch (error) {
@@ -86,14 +85,14 @@ const loadSale = async (saleId: string) => {
   };
 
   const formatDate = (timestamp: any) => {
-    if (!timestamp) return i18n.t('sales.detail.unknownDate');
-    
+    if (!timestamp) return 'Fecha desconocida';
+
     try {
       const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
       return format(date, 'dd/MM/yyyy HH:mm', { locale: es });
     } catch (error) {
       console.error('Error al formatear fecha:', error);
-      return i18n.t('sales.detail.invalidDate');
+      return 'Fecha inválida';
     }
   };
 
@@ -101,7 +100,7 @@ const loadSale = async (saleId: string) => {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={theme.primary} />
-        <Text style={[styles.loadingText, { color: theme.textLight }]}>{i18n.t('sales.detail.loading')}</Text>
+        <Text style={[styles.loadingText, { color: theme.textLight }]}>{'Cargando venta...'}</Text>
       </View>
     );
   }
@@ -109,12 +108,12 @@ const loadSale = async (saleId: string) => {
   if (!sale) {
     return (
       <View style={[styles.errorContainer, { backgroundColor: theme.background }]}>
-        <Text style={[styles.errorText, { color: theme.error }]}>{i18n.t('sales.detail.notFound')}</Text>
-        <TouchableOpacity 
-          style={[styles.backButton, { backgroundColor: theme.primary }]} 
+        <Text style={[styles.errorText, { color: theme.error }]}>{'Venta no encontrada'}</Text>
+        <TouchableOpacity
+          style={[styles.backButton, { backgroundColor: theme.primary }]}
           onPress={() => router.back()}
         >
-          <Text style={[styles.backButtonText, { color: theme.surface }]}>{i18n.t('sales.detail.back')}</Text>
+          <Text style={[styles.backButtonText, { color: theme.surface }]}>{'Regresar'}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -125,10 +124,10 @@ const loadSale = async (saleId: string) => {
     <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={[styles.card, { backgroundColor: theme.surface }]}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: theme.text }]}>{i18n.t('sales.detail.title')}</Text>
+          <Text style={[styles.title, { color: theme.text }]}>{'Detalle de venta'}</Text>
           <Text style={[styles.date, { color: theme.textLight }]}>{formatDate(sale.date)}</Text>
         </View>
-        
+
         {/* Add print button */}
         <TouchableOpacity
           style={[styles.printButton, { backgroundColor: theme.primary }]}
@@ -141,17 +140,17 @@ const loadSale = async (saleId: string) => {
             <>
               <Ionicons name="receipt-outline" size={20} color={theme.surface} />
               <Text style={[styles.printButtonText, { color: theme.surface }]}>
-                {i18n.t('receipt.generate')}
+                {'Generar comprobante'}
               </Text>
             </>
           )}
         </TouchableOpacity>
-        
+
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { 
-            color: theme.primary, 
-            borderBottomColor: theme.primaryLight 
-          }]}>{i18n.t('sales.detail.products')}</Text>
+          <Text style={[styles.sectionTitle, {
+            color: theme.primary,
+            borderBottomColor: theme.primaryLight
+          }]}>{'Productos'}</Text>
           {sale.items.map((item, index) => (
             <View key={index} style={[styles.itemRow, { borderBottomColor: theme.background }]}>
               <View style={styles.itemInfo}>
@@ -166,41 +165,41 @@ const loadSale = async (saleId: string) => {
                 ${item.subtotal.toLocaleString('es-ES')}
               </Text>
             </View>
-            
+
           ))}
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { 
-            color: theme.primary, 
-            borderBottomColor: theme.primaryLight 
-          }]}>{i18n.t('sales.detail.summary')}</Text>
+          <Text style={[styles.sectionTitle, {
+            color: theme.primary,
+            borderBottomColor: theme.primaryLight
+          }]}>{'Resumen'}</Text>
           <View style={styles.summaryRow}>
-            <Text style={[styles.summaryLabel, { color: theme.text }]}>{i18n.t('sales.detail.totalProducts')}:</Text>
+            <Text style={[styles.summaryLabel, { color: theme.text }]}>{'Total de productos'}</Text>
             <Text style={[styles.summaryValue, { color: theme.text }]}>{sale.items.length}</Text>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={[styles.summaryLabel, { color: theme.text }]}>{i18n.t('sales.detail.totalItems')}:</Text>
+            <Text style={[styles.summaryLabel, { color: theme.text }]}>{'Total de items'}</Text>
             <Text style={[styles.summaryValue, { color: theme.text }]}>
               {sale.items.reduce((sum, item) => sum + item.units, 0)}
             </Text>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={[styles.summaryLabel, { color: theme.text }]}>{i18n.t('sales.detail.paymentMethod')}:</Text>
+            <Text style={[styles.summaryLabel, { color: theme.text }]}>{'Método de pago'}</Text>
             <Text style={[styles.summaryValue, { color: theme.text }]}>{sale.payment_method}</Text>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={[styles.summaryLabel, { color: theme.text }]}>Subtotal:</Text>
+            <Text style={[styles.summaryLabel, { color: theme.text }]}>{'Subtotal'}</Text>
             <Text style={[styles.summaryValue, { color: theme.text }]}>${(subTotal).toLocaleString('es-ES')}</Text>
           </View>
           {sale.discount > 0 && (
             <View style={styles.summaryRow}>
-              <Text style={[styles.summaryLabel, { color: theme.text }]}>Descuento:</Text>
+              <Text style={[styles.summaryLabel, { color: theme.text }]}>{'Descuento'}</Text>
               <Text style={[styles.summaryValue, { color: theme.text }]}>-${sale.discount.toLocaleString('es-ES')}% | ${(subTotal * sale.discount) / 100}</Text>
             </View>
           )}
           <View style={[styles.summaryRow, styles.totalRow, { borderTopColor: theme.primaryLight }]}>
-            <Text style={[styles.totalLabel, { color: theme.text }]}>{i18n.t('sales.detail.total')}:</Text>
+            <Text style={[styles.totalLabel, { color: theme.text }]}>{'Total'}</Text>
             <Text style={[styles.totalValue, { color: theme.primary }]}>
               ${sale.total_amount.toLocaleString('es-ES')}
             </Text>
@@ -209,10 +208,10 @@ const loadSale = async (saleId: string) => {
 
         {sale.notes ? (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { 
-              color: theme.primary, 
-              borderBottomColor: theme.primaryLight 
-            }]}>{i18n.t('sales.detail.notes')}</Text>
+            <Text style={[styles.sectionTitle, {
+              color: theme.primary,
+              borderBottomColor: theme.primaryLight
+            }]}>{'Notas'}</Text>
             <Text style={[styles.notes, { color: theme.text }]}>{sale.notes}</Text>
           </View>
         ) : null}
@@ -222,7 +221,7 @@ const loadSale = async (saleId: string) => {
           onPress={() => router.back()}
         >
           <Ionicons name="arrow-back" size={20} color={theme.surface} />
-          <Text style={[styles.backButtonText, { color: theme.surface }]}>{i18n.t('sales.detail.back')}</Text>
+          <Text style={[styles.backButtonText, { color: theme.surface }]}>{'Regresar'}</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>

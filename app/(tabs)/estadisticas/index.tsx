@@ -3,7 +3,6 @@ import { View, StyleSheet, ScrollView, ActivityIndicator, Dimensions, TouchableO
 import { BarChart, PieChart, LineChart } from 'react-native-chart-kit';
 import { productService } from '../../../services/productService';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import i18n from '@/translations';
 import { cashService } from '../../../services/cashService';
 import { salesService } from '@/services/salesService';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -329,7 +328,7 @@ export default function StatisticsScreen() {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={theme.primary} />
-        <ThemedText style={{ marginTop: 12 }}>{i18n.t('statistics.loading')}</ThemedText>
+        <ThemedText style={{ marginTop: 12 }}>Cargando...</ThemedText>
       </View>
     );
   }
@@ -367,15 +366,15 @@ export default function StatisticsScreen() {
 
   const inventoryData = {
     labels: [
-      i18n.t('statistics.cost'),
-      i18n.t('statistics.sale'),
-      i18n.t('statistics.profit')
+      'Costo',
+      'Venta',
+      'Beneficio'
     ],
     datasets: [{
       data: [
-        `${stats.investedMoney}`,
-        `${stats.potentialIncome}`,
-        `${stats.potentialProfit}`
+        stats.investedMoney,
+        stats.potentialIncome,
+        stats.potentialProfit
       ],
       colors: [
         (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,   // Red 500
@@ -405,9 +404,9 @@ export default function StatisticsScreen() {
                 filterType === type ? { color: '#FFF' } : { color: theme.textSecondary }
               ]}
             >
-              {type === 'all' ? i18n.t('statistics.historic') :
-                type === 'monthly' ? i18n.t('statistics.monthly') :
-                  i18n.t('statistics.custom')}
+              {type === 'all' ? 'Historico' :
+                type === 'monthly' ? 'Mensual' :
+                  'Personalizado'}
             </ThemedText>
           </TouchableOpacity>
         ))}
@@ -451,10 +450,10 @@ export default function StatisticsScreen() {
 
   const financialData = {
     labels: [
-      i18n.t('statistics.income'),
-      i18n.t('statistics.expenses'),
-      i18n.t('statistics.net'),
-      i18n.t('statistics.profit')
+      'Ingreso',
+      'Gasto',
+      'Neto',
+      'Beneficio'
     ],
     datasets: [{
       data: [
@@ -569,7 +568,7 @@ export default function StatisticsScreen() {
         }
       >
         <View style={styles.header}>
-          <ThemedText type="title">{i18n.t('statistics.title')}</ThemedText>
+          <ThemedText type="title">Estadísticas</ThemedText>
         </View>
 
         {renderFilterControls()}
@@ -577,14 +576,14 @@ export default function StatisticsScreen() {
         <View style={styles.statsGrid}>
           <View style={styles.statsRow}>
             <StatCard
-              title={i18n.t('statistics.totalProducts')}
+              title={'Total de productos'}
               value={stats.totalProducts}
               icon="cube-outline"
               color={theme.info}
               style={{ flex: 1 }}
             />
             <StatCard
-              title={i18n.t('statistics.lowStockProducts')}
+              title={'Productos con stock bajo'}
               value={stats.lowStockProducts}
               icon="alert-circle-outline"
               color={theme.warning}
@@ -593,7 +592,7 @@ export default function StatisticsScreen() {
           </View>
           <View style={styles.statsRow}>
             <StatCard
-              title={i18n.t('statistics.potentialProfit')}
+              title={'Posible beneficio'}
               value={`$${stats.potentialProfit.toLocaleString('es-ES')}`}
               icon="cash-outline"
               color={theme.success}
@@ -602,14 +601,14 @@ export default function StatisticsScreen() {
           </View>
           <View style={styles.statsRow}>
             <StatCard
-              title={i18n.t('statistics.investedMoney')}
+              title={'Invertido'}
               value={`$${stats.investedMoney.toLocaleString('es-ES')}`}
               icon="wallet-outline"
               color={theme.error}
               style={{ flex: 1 }}
             />
             <StatCard
-              title={i18n.t('statistics.potentialIncome')}
+              title={'Posible ingreso'}
               value={`$${stats.potentialIncome.toLocaleString('es-ES')}`}
               icon="trending-up-outline"
               color={theme.accent}
@@ -621,7 +620,7 @@ export default function StatisticsScreen() {
         <Card variant="elevated" style={styles.chartCard}>
           <View style={styles.chartHeader}>
             <View>
-              <ThemedText type="defaultSemiBold" style={styles.chartTitle}>{i18n.t('statistics.capitalDistribution')}</ThemedText>
+              <ThemedText type="defaultSemiBold" style={styles.chartTitle}>Distribución de capital</ThemedText>
               <ThemedText style={styles.chartSubtitle}>Inversión vs. Ganancia</ThemedText>
             </View>
             <Ionicons name="pie-chart-outline" size={24} color={theme.accent} />
@@ -630,7 +629,7 @@ export default function StatisticsScreen() {
           <PieChart
             data={[
               {
-                name: i18n.t('statistics.investment'),
+                name: 'Inversión',
                 value: stats.investedMoney,
                 color: theme.error, // Usamos rojo para inversión/costo
                 legendFontColor: theme.textSecondary,
@@ -638,7 +637,7 @@ export default function StatisticsScreen() {
                 legendFontWeight: '600',
               },
               {
-                name: i18n.t('statistics.profit'),
+                name: 'Beneficio',
                 value: stats.potentialProfit,
                 color: theme.success, // Verde para ganancia
                 legendFontColor: theme.textSecondary,
@@ -662,7 +661,7 @@ export default function StatisticsScreen() {
           <View style={styles.chartHeader}>
             <View>
               <ThemedText type="defaultSemiBold" style={styles.chartTitle}>Análisis de inventario</ThemedText>
-              <ThemedText style={styles.chartSubtitle}>{i18n.t('statistics.valuesSummary')}</ThemedText>
+              <ThemedText style={styles.chartSubtitle}>Resumen de valores</ThemedText>
             </View>
             <Ionicons name="bar-chart-outline" size={24} color={theme.info} />
           </View>
@@ -691,7 +690,7 @@ export default function StatisticsScreen() {
           <View style={styles.chartHeader}>
             <View>
               <ThemedText type="defaultSemiBold" style={styles.chartTitle}>Balance financiero</ThemedText>
-              <ThemedText style={styles.chartSubtitle}>{i18n.t('statistics.financialAnalysis')}</ThemedText>
+              <ThemedText style={styles.chartSubtitle}>Análisis financiero</ThemedText>
             </View>
             <Ionicons name="calculator-outline" size={24} color={theme.success} />
           </View>
@@ -715,14 +714,14 @@ export default function StatisticsScreen() {
           <View style={styles.legendContainer}>
             <View style={styles.legendRow}>
               <View style={[styles.legendDot, { backgroundColor: theme.success }]} />
-              <ThemedText style={styles.legendLabel}>{i18n.t('statistics.netBalance')}:</ThemedText>
+              <ThemedText style={styles.legendLabel}>Balance neto:</ThemedText>
               <ThemedText type="defaultSemiBold" style={{ color: stats.netIncome >= 0 ? theme.success : theme.error }}>
                 ${stats.netIncome.toLocaleString('es-ES')}
               </ThemedText>
             </View>
             <View style={styles.legendRow}>
               <View style={[styles.legendDot, { backgroundColor: theme.primary }]} />
-              <ThemedText style={styles.legendLabel}>{i18n.t('statistics.estimatedProfit')}:</ThemedText>
+              <ThemedText style={styles.legendLabel}>Beneficio estimado:</ThemedText>
               <ThemedText type="defaultSemiBold" style={{ color: stats.totalProfit >= 0 ? theme.success : theme.error }}>
                 ${stats.totalProfit.toLocaleString('es-ES')}
               </ThemedText>

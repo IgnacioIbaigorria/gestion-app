@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -22,7 +22,6 @@ import { cashService } from '../../../services/cashService';
 import { receiptService } from '../../../services/receiptService';
 import { Product, Sale, SaleItem } from '../../../models/types';
 import ProductSearchInput from '../../../components/ProductSearchInput';
-import i18n from '../../../translations';
 import { useTheme } from '../../../contexts/ThemeContext';
 
 export default function NewSaleScreen() {
@@ -100,7 +99,7 @@ export default function NewSaleScreen() {
       router.back();
     } catch (error) {
       console.error('Error generating receipt:', error);
-      Alert.alert(i18n.t('common.error'), i18n.t('receipt.generateError'));
+      Alert.alert('Error', 'Error al generar recibo');
     } finally {
       setLoading(false);
     }
@@ -135,13 +134,13 @@ export default function NewSaleScreen() {
 
   const handleAddToCart = () => {
     if (!selectedProduct) {
-      Alert.alert(i18n.t('common.error'), i18n.t('sales.errorSelectProduct'));
+      Alert.alert('Error', 'Seleccione un producto');
       return;
     }
 
     const newUnits = parseInt(inputUnits, 10);
     if (isNaN(newUnits) || newUnits <= 0) {
-      Alert.alert(i18n.t('common.error'), i18n.t('sales.errorValidQuantity'));
+      Alert.alert('Error', 'Ingrese una cantidad vÃ¡lida');
       return;
     }
 
@@ -152,7 +151,7 @@ export default function NewSaleScreen() {
 
     // Verificamos stock
     if (totalUnits > (selectedProduct.units || 0)) {
-      Alert.alert(i18n.t('common.error'), 'No hay suficiente stock de unidades');
+      Alert.alert('Error', 'No hay suficiente stock de unidades');
       return;
     }
 
@@ -370,7 +369,7 @@ export default function NewSaleScreen() {
           <View style={styles.section}>
             {cartItems.length === 0 ? (
               <Text style={[styles.emptyCartText, {color: theme.textLight}]}>
-                {i18n.t('sales.emptyCart')}
+                {'Carrito vacÃ­o'}
               </Text>
             ) : (
               // Replace FlatList with a simple mapping of items
@@ -420,7 +419,7 @@ export default function NewSaleScreen() {
               
               <View style={styles.formGroup}>
                 <View style={styles.paymentMethodContainer}>
-                  {[i18n.t('payment.cash'), i18n.t('payment.transfer'), i18n.t('payment.debit'), i18n.t('payment.credit')].map((method) => (
+                  {['Efectivo', 'Transferencia', 'DÃ©bito', 'CrÃ©dito'].map((method) => (
                     <TouchableOpacity
                       key={method}
                       style={[
@@ -450,7 +449,7 @@ export default function NewSaleScreen() {
               
               <View style={styles.formGroup}>
                 <Text style={[styles.label, {color: theme.text}]}>
-                  {i18n.t('sales.notes')}
+                  {'Notas'}
                 </Text>
                 <TextInput
                   style={[styles.notesInput, {
@@ -460,7 +459,7 @@ export default function NewSaleScreen() {
                   }]}
                   value={notes}
                   onChangeText={setNotes}
-                  placeholder={i18n.t('sales.addNotes')}
+                  placeholder={'Agregar notas...'}
                   placeholderTextColor={theme.textLight}
                   multiline
                 />
@@ -514,10 +513,10 @@ export default function NewSaleScreen() {
             <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
               <Ionicons name="checkmark-circle" size={60} color={theme.success} style={styles.successIcon} />
               <Text style={[styles.modalTitle, { color: theme.text }]}>
-                {i18n.t('sales.successSale')}
+                {'Venta realizada con Ã©xito'}
               </Text>
               <Text style={[styles.modalText, { color: theme.textLight }]}>
-                {i18n.t('receipt.generateQuestion')}
+                {'Â¿Desea generar un recibo?'}
               </Text>
               
               <View style={styles.modalButtons}>
@@ -525,7 +524,7 @@ export default function NewSaleScreen() {
                   style={[styles.modalButton, { backgroundColor: theme.background, borderColor: theme.border }]}
                   onPress={handleSkipReceipt}
                 >
-                  <Text style={{ color: theme.text }}>{i18n.t('receipt.skip')}</Text>
+                  <Text style={{ color: theme.text }}>{'Omitir'}</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity

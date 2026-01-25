@@ -1,7 +1,6 @@
 import { Sale } from '../models/types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import i18n from '../translations';
 import { settingsService } from './settingsService';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -11,14 +10,14 @@ export const receiptService = {
     // Get business name from settings
     const settings = await settingsService.getSettings();
     const businessName = settings.businessName || 'Punto Eco';
-    
+
     // Format date
     const formattedDate = format(
-      sale.date, 
-      'dd/MM/yyyy HH:mm', 
+      sale.date,
+      'dd/MM/yyyy HH:mm',
       { locale: es }
     );
-    
+
     // Generate items HTML
     const itemsHTML = sale.items.map(item => `
       <tr>
@@ -28,10 +27,10 @@ export const receiptService = {
         <td>$${item.subtotal.toLocaleString('es-ES')}</td>
       </tr>
     `).join('');
-    
+
     // Calculate total items
     const totalItems = sale.items.reduce((sum, item) => sum + item.quantity, 0);
-    
+
     // Generate HTML
     return `
       <!DOCTYPE html>
@@ -39,7 +38,7 @@ export const receiptService = {
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
-          <title>${i18n.t('receipt.title')}</title>
+          <title>Recibo de Venta</title>
           <style>
             body {
               font-family: 'Helvetica', sans-serif;
@@ -123,17 +122,17 @@ export const receiptService = {
           <div class="receipt">
             <div class="header">
               <div class="business-name">${businessName}</div>
-              <div class="receipt-title">${i18n.t('receipt.title')}</div>
-              <div class="date">${i18n.t('receipt.date')}: ${formattedDate}</div>
+              <div class="receipt-title">Recibo de Venta</div>
+              <div class="date">Fecha: ${formattedDate}</div>
             </div>
             
             <table>
               <thead>
                 <tr>
-                  <th>${i18n.t('receipt.product')}</th>
-                  <th>${i18n.t('receipt.quantity')}</th>
-                  <th>${i18n.t('receipt.unitPrice')}</th>
-                  <th>${i18n.t('receipt.subtotal')}</th>
+                  <th>Producto</th>
+                  <th>Cantidad</th>
+                  <th>Precio Unit.</th>
+                  <th>Subtotal</th>
                 </tr>
               </thead>
               <tbody>
@@ -143,15 +142,15 @@ export const receiptService = {
             
             <div class="summary">
               <div class="summary-row">
-                <span>${i18n.t('receipt.totalProducts')}:</span>
+                <span>Total productos:</span>
                 <span>${sale.items.length}</span>
               </div>
               <div class="summary-row">
-                <span>${i18n.t('receipt.totalItems')}:</span>
+                <span>Total items:</span>
                 <span>${totalItems}</span>
               </div>
               <div class="summary-row">
-                <span>${i18n.t('receipt.paymentMethod')}:</span>
+                <span>Método de pago:</span>
                 <span>${sale.payment_method}</span>
               </div>
 
@@ -166,42 +165,42 @@ export const receiptService = {
                 <span>${sale.payment_method}</span>
               </div>
               <div class="total">
-                ${i18n.t('receipt.total')}: $${sale.total_amount.toLocaleString('es-ES')}
+                Total: $${sale.total_amount.toLocaleString('es-ES')}
               </div>
             </div>
             
             ${sale.notes ? `
               <div class="notes">
-                <h3>${i18n.t('receipt.notes')}:</h3>
+                <h3>Notas:</h3>
                 <p>${sale.notes}</p>
               </div>
             ` : ''}
             
             <div class="footer">
-              ${i18n.t('receipt.thankYou')}
+              ¡Gracias por su compra!
             </div>
           </div>
         </body>
       </html>
     `;
   },
-  
+
   async generatePDF(sale: Sale): Promise<string> {
     try {
       const html = await this.generateReceiptHTML(sale);
-      
+
       const { uri } = await Print.printToFileAsync({
         html,
         base64: false
       });
-      
+
       return uri;
     } catch (error) {
       console.error('Error generating PDF:', error);
       throw error;
     }
   },
-  
+
   async sharePDF(filePath: string): Promise<void> {
     try {
       await Sharing.shareAsync(filePath, {

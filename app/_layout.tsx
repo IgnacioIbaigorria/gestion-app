@@ -4,11 +4,8 @@ import { router, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import Colors from '@/constants/Colors';
-import { LanguageProvider } from '../context/LanguageContext';
 import { TouchableOpacity, SafeAreaView, View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import i18n from '@/translations';
-import { useLanguage } from '../context/LanguageContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import React from 'react';
 import { ScrollView } from 'react-native-gesture-handler';
@@ -73,15 +70,12 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-      <LanguageProvider>
-        <RootLayoutNav />
-      </LanguageProvider>
+      <RootLayoutNav />
     </ThemeProvider>
   );
 }
 
 function RootLayoutNav() {
-  const { locale } = useLanguage();
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.primary }}>
@@ -95,7 +89,7 @@ function RootLayoutNav() {
           headerTitleStyle: {
             fontWeight: 'bold',
           },
-          statusBarStyle: 'inverted',
+          statusBarStyle: 'light',
           statusBarHidden: false,
           statusBarAnimation: 'slide',
           statusBarBackgroundColor: Colors.primary,
@@ -103,12 +97,6 @@ function RootLayoutNav() {
       >
         <Stack.Screen
           name="(tabs)"
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="settings/language"
           options={{
             headerShown: false,
           }}

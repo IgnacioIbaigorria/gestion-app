@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Category, Product, Tag } from '../models/types';
 import { tagService } from '../services/tagService';
 import { categoryService } from '@/services/categoryService';
-import i18n from '@/translations';
 import { useTheme } from '@/contexts/ThemeContext';
 import { productService } from '@/services/productService';
 import { ThemedText } from './ThemedText';
@@ -34,89 +33,35 @@ const preloadMetadata = async () => {
 preloadMetadata();
 
 interface ProductItemProps {
-  product: Product & { tagObjects?: Tag[] };
+  product: Product & {
+    tagObjects?: Tag[];
+    categoryObject?: Category;
+  };
   onDelete: (id: string) => void;
   highlighted?: boolean;
-  category?: Category;
   selected?: boolean;
   selectionMode?: boolean;
   onLongPress?: () => void;
   onPress?: () => void;
 }
 
-export default function ProductItem({ product, onDelete, highlighted, category, selected = false, selectionMode = false, onLongPress, onPress }: ProductItemProps) {
+// Componente memoizado para evitar re-renders innecesarios
+function ProductItem({
+  product,
+  onDelete,
+  highlighted,
+  selected = false,
+  selectionMode = false,
+  onLongPress,
+  onPress
+}: ProductItemProps) {
   const { theme } = useTheme();
-  const [productTags, setProductTags] = useState<Tag[]>([]);
-  const [productCategory, setProductCategory] = useState<Category | null>(null);
+
+  // Usar directamente las props pre-cargadas
+  const productTags = product.tagObjects || [];
+  const productCategory = product.categoryObject || null;
 
   const isLowStock = (product.quantity || 0) <= (product.low_stock_threshold || 2);
-  const isLowStockUnity = (product.quantity || 0) <= ((product.low_stock_threshold ? product.low_stock_threshold : 2) * (product.cantidad_por_caja || 1));
-
-  useEffect(() => {
-    // Clear previous tags when product changes
-    setProductTags([]);
-
-    // First priority: use tagObjects if available
-    if (product.tagObjects && product.tagObjects.length > 0) {
-      setProductTags(product.tagObjects);
-    }
-    // Second priority: use tags IDs with tagsCache
-    else if (product.tags && product.tags.length > 0 && tagsCache.length > 0) {
-      const filteredTags = tagsCache.filter(tag => product.tags?.includes(tag.id || ''));
-      setProductTags(filteredTags);
-    }
-    // Last resort: fetch tags from service
-    else if (product.id) {
-      const getProductDetails = async () => {
-        try {
-          const productWithDetails = await productService.getProductWithDetails(product.id!);
-          if (productWithDetails.tagObjects && productWithDetails.tagObjects.length > 0) {
-            setProductTags(productWithDetails.tagObjects);
-          } else if (productWithDetails.tags && productWithDetails.tags.length > 0) {
-            if (tagsCache.length === 0) {
-              tagsCache = await tagService.getAllTags();
-            }
-            const filteredTags = tagsCache.filter(tag =>
-              productWithDetails.tags?.includes(tag.id || '')
-            );
-            setProductTags(filteredTags);
-          }
-        } catch (error) {
-          console.error('Error getting product details:', error);
-        }
-      };
-      getProductDetails();
-    }
-
-    if (!category && product.category_id) {
-      if (categoriesCache.length > 0) {
-        const foundCategory = categoriesCache.find(cat => cat.id === product.category_id);
-        if (foundCategory) {
-          setProductCategory(foundCategory);
-        }
-      } else {
-        loadCategory();
-      }
-    } else if (category) {
-      setProductCategory(category);
-    }
-  }, [product.id, product.name, product.cost_price, product.selling_price, product.tags, product.tagObjects, category]);
-
-  const loadCategory = async () => {
-    try {
-      if (product.category_id) {
-        if (categoriesCache.length === 0) {
-          categoriesCache = await categoryService.getAllCategories();
-        }
-        const foundCategory = categoriesCache.find(cat => cat.id === product.category_id);
-        if (foundCategory) {
-          setProductCategory(foundCategory);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading category:', error);
-    }
-  };
 
   const handlePress = () => {
     productService.clearProductCache(product.id!);
@@ -195,6 +140,22 @@ export default function ProductItem({ product, onDelete, highlighted, category, 
     </TouchableOpacity>
   );
 }
+
+// Exportar con memo y comparación personalizada
+export default React.memo(ProductItem, (prevProps, nextProps) => {
+  // Solo re-renderizar si estas props cambian
+  return (
+    prevProps.product.id === nextProps.product.id &&
+    prevProps.product.name === nextProps.product.name &&
+    prevProps.product.selling_price === nextProps.product.selling_price &&
+    prevProps.product.unit_price === nextProps.product.unit_price &&
+    prevProps.product.quantity === nextProps.product.quantity &&
+    prevProps.product.units === nextProps.product.units &&
+    prevProps.highlighted === nextProps.highlighted &&
+    prevProps.selected === nextProps.selected &&
+    prevProps.selectionMode === nextProps.selectionMode
+  );
+});
 
 const styles = StyleSheet.create({
   cardContainer: {

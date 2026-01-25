@@ -14,7 +14,6 @@ import { cashService } from '../../../services/cashService';
 import { salesService } from '../../../services/salesService';
 import { format, subDays, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import i18n from '@/translations';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -46,10 +45,10 @@ export default function CashReportScreen() {
   const loadReportData = async () => {
     try {
       setLoading(true);
-      
+
       let startDateObj;
       const endDateObj = endOfDay(period === 'custom' ? endDate : new Date());
-      
+
       switch (period) {
         case 'today':
           startDateObj = startOfDay(new Date());
@@ -66,13 +65,13 @@ export default function CashReportScreen() {
         default:
           startDateObj = startOfDay(new Date());
       }
-    
+
       // Obtener datos de transacciones
       const transactions = await cashService.getTransactionsByDateRange(
         startDateObj,
         endDateObj
       );
-      
+
       // Obtener datos de ventas
       const sales = await salesService.getSalesByDateRange(
         startDateObj,
@@ -98,13 +97,13 @@ export default function CashReportScreen() {
           }))
       );
 
-      
+
       // Calcular totales
       let salesTotal = 0;
       let expensesTotal = 0;
       let depositsTotal = 0;
       let withdrawalsTotal = 0;
-      
+
       transactions.forEach(transaction => {
         switch (transaction.type) {
           case 'sale':
@@ -121,13 +120,13 @@ export default function CashReportScreen() {
             break;
         }
       });
-      
+
       // Calcular ingresos netos (ventas - gastos)
       const income = salesTotal - expensesTotal;
-      
+
       // Obtener saldo actual
       const balance = await cashService.getCurrentBalance();
-      
+
       setTotalSales(salesTotal);
       setTotalExpenses(expensesTotal);
       setTotalDeposits(depositsTotal);
@@ -135,7 +134,7 @@ export default function CashReportScreen() {
       setNetIncome(income);
       setCurrentBalance(balance);
       setSalesCount(sales.length);
-      
+
     } catch (error) {
       Alert.alert('Error', 'No se pudieron cargar los datos del reporte');
       console.error(error);
@@ -361,7 +360,7 @@ export default function CashReportScreen() {
   const getDateRangeText = () => {
     const endDateObj = new Date();
     let startDateObj;
-    
+
     switch (period) {
       case 'today':
         return `${formatDate(endDateObj)}`;
@@ -374,20 +373,20 @@ export default function CashReportScreen() {
       case 'custom':
         return `${formatDate(startDate)} - ${formatDate(endDate)}`;
       default:
-        return i18n.t('common.unknownPeriod');
+        return 'Periodo desconocido';
     }
   };
 
   // Add custom date range selector component
   const renderCustomDateSelector = () => {
     if (period !== 'custom') return null;
-    
+
     return (
       <View style={styles.customDateContainer}>
         <TouchableOpacity
-          style={[styles.dateButton, { 
-            backgroundColor: theme.surface, 
-            borderColor: theme.primaryLight 
+          style={[styles.dateButton, {
+            backgroundColor: theme.surface,
+            borderColor: theme.primaryLight
           }]}
           onPress={() => {
             setDatePickerType('start');
@@ -396,14 +395,14 @@ export default function CashReportScreen() {
         >
           <Ionicons name="calendar-outline" size={18} color={theme.primary} />
           <Text style={[styles.dateButtonText, { color: theme.text }]}>
-            {i18n.t('statistics.from')}: {formatDate(startDate)}
+            {'Desde'}: {formatDate(startDate)}
           </Text>
         </TouchableOpacity>
-        
+
         <TouchableOpacity
-          style={[styles.dateButton, { 
-            backgroundColor: theme.surface, 
-            borderColor: theme.primaryLight 
+          style={[styles.dateButton, {
+            backgroundColor: theme.surface,
+            borderColor: theme.primaryLight
           }]}
           onPress={() => {
             setDatePickerType('end');
@@ -412,7 +411,7 @@ export default function CashReportScreen() {
         >
           <Ionicons name="calendar-outline" size={18} color={theme.primary} />
           <Text style={[styles.dateButtonText, { color: theme.text }]}>
-            {i18n.t('statistics.to')}: {formatDate(endDate)}
+            {'Hasta'}: {formatDate(endDate)}
           </Text>
         </TouchableOpacity>
       </View>
@@ -423,7 +422,7 @@ export default function CashReportScreen() {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={theme.primary} />
-        <Text style={[styles.loadingText, { color: theme.textLight }]}>{i18n.t('cash.loading')}</Text>
+        <Text style={[styles.loadingText, { color: theme.textLight }]}>{'Cargando'}</Text>
       </View>
     );
   }
@@ -445,10 +444,10 @@ export default function CashReportScreen() {
               period === 'today' && [styles.activePeriodButtonText, { color: theme.surface }]
             ]}
           >
-            {i18n.t('common.today')}
+            {'Hoy'}
           </Text>
         </TouchableOpacity>
-        
+
         <TouchableOpacity
           style={[
             styles.periodButton,
@@ -463,10 +462,10 @@ export default function CashReportScreen() {
               period === 'week' && [styles.activePeriodButtonText, { color: theme.surface }]
             ]}
           >
-            {i18n.t('common.week')}
+            {'Semana'}
           </Text>
         </TouchableOpacity>
-                
+
         <TouchableOpacity
           style={[
             styles.periodButton,
@@ -481,7 +480,7 @@ export default function CashReportScreen() {
               period === 'custom' && [styles.activePeriodButtonText, { color: theme.surface }]
             ]}
           >
-            {i18n.t('common.custom')}
+            {'Personalizado'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -498,41 +497,41 @@ export default function CashReportScreen() {
       <Text style={[styles.dateRangeText, { color: theme.textLight }]}>{getDateRangeText()}</Text>
 
       <View style={[styles.card, { backgroundColor: theme.surface }]}>
-        <Text style={[styles.cardTitle, { 
+        <Text style={[styles.cardTitle, {
           color: theme.text,
-          borderBottomColor: theme.background 
+          borderBottomColor: theme.background
         }]}>Resumen</Text>
-        
+
         <View style={styles.summaryItem}>
           <View style={[styles.summaryIconContainer, { backgroundColor: theme.primaryLight }]}>
             <Ionicons name="cash-outline" size={24} color={theme.primary} />
           </View>
           <View style={styles.summaryInfo}>
-            <Text style={[styles.summaryLabel, { color: theme.textLight }]}>{i18n.t('cash.currentBalance')}</Text>
+            <Text style={[styles.summaryLabel, { color: theme.textLight }]}>{'Saldo actual'}</Text>
             <Text style={[styles.summaryValue, { color: theme.text }]}>${currentBalance.toLocaleString('es-ES')}</Text>
           </View>
         </View>
-        
+
         <View style={styles.summaryItem}>
-          <View style={[styles.summaryIconContainer, { backgroundColor: theme.successLight }]}>
-            <Ionicons name="trending-up" size={24} color={theme.blueLight} />
+          <View style={[styles.summaryIconContainer, { backgroundColor: theme.primaryLight }]}>
+            <Ionicons name="trending-up" size={24} color={theme.primary} />
           </View>
           <View style={styles.summaryInfo}>
-            <Text style={[styles.summaryLabel, { color: theme.textLight }]}>{i18n.t('cash.netIncome')}</Text>
-            <Text style={[styles.summaryValue, { 
-              color: netIncome >= 0 ? theme.success : theme.error 
+            <Text style={[styles.summaryLabel, { color: theme.textLight }]}>{'Ingresos netos'}</Text>
+            <Text style={[styles.summaryValue, {
+              color: netIncome >= 0 ? theme.success : theme.error
             }]}>
               ${netIncome.toLocaleString('es-ES')}
             </Text>
           </View>
         </View>
-        
+
         <View style={styles.summaryItem}>
           <View style={[styles.summaryIconContainer, { backgroundColor: theme.primaryLight }]}>
             <Ionicons name="cart-outline" size={24} color={theme.primary} />
           </View>
           <View style={styles.summaryInfo}>
-            <Text style={[styles.summaryLabel, { color: theme.textLight }]}>{i18n.t('sales.title')}</Text>
+            <Text style={[styles.summaryLabel, { color: theme.textLight }]}>{'Ventas'}</Text>
             <Text style={[styles.summaryValue, { color: theme.text }]}>{salesCount}</Text>
           </View>
         </View>
@@ -589,7 +588,7 @@ export default function CashReportScreen() {
                 </View>
               )}
               {sale.discount > 0 && (
-                <View style={{marginVertical: 4, flexDirection: 'row'}}>
+                <View style={{ marginVertical: 4, flexDirection: 'row' }}>
                   <Text style={{ fontWeight: 'bold', color: theme.textLight }}>Descuento:</Text>
                   <Text style={{ fontWeight: 'bold', color: theme.text }}> -{sale.discount.toLocaleString('es-ES')}%</Text>
                 </View>
@@ -656,37 +655,37 @@ export default function CashReportScreen() {
 
 
       <View style={[styles.card, { backgroundColor: theme.surface }]}>
-        <Text style={[styles.cardTitle, { 
+        <Text style={[styles.cardTitle, {
           color: theme.text,
-          borderBottomColor: theme.background 
-        }]}>{i18n.t('statistics.valuesSummary')}</Text>
-        
+          borderBottomColor: theme.background
+        }]}>{'Resumen de valores'}</Text>
+
         <View style={[styles.detailItem, { borderBottomColor: theme.background }]}>
-          <Text style={[styles.detailLabel, { color: theme.text }]}>{i18n.t('statistics.totalSale')}</Text>
+          <Text style={[styles.detailLabel, { color: theme.text }]}>{'Total de ventas'}</Text>
           <Text style={[styles.detailValue, { color: theme.text }]}>${totalSales.toLocaleString('es-ES')}</Text>
         </View>
-        
+
         <View style={[styles.detailItem, { borderBottomColor: theme.background }]}>
-          <Text style={[styles.detailLabel, { color: theme.text }]}>{i18n.t('statistics.totalExpenses')}</Text>
+          <Text style={[styles.detailLabel, { color: theme.text }]}>{'Total de gastos'}</Text>
           <Text style={[styles.detailValue, { color: theme.text }]}>-${totalExpenses.toLocaleString('es-ES')}</Text>
         </View>
-        
+
         <View style={[styles.detailItem, { borderBottomColor: theme.background }]}>
-          <Text style={[styles.detailLabel, { color: theme.text }]}>{i18n.t('cash.deposit')}</Text>
+          <Text style={[styles.detailLabel, { color: theme.text }]}>{'Depositos'}</Text>
           <Text style={[styles.detailValue, { color: theme.text }]}>${totalDeposits.toLocaleString('es-ES')}</Text>
         </View>
-        
+
         <View style={[styles.detailItem, { borderBottomColor: theme.background }]}>
-          <Text style={[styles.detailLabel, { color: theme.text }]}>{i18n.t('cash.withdrawal')}</Text>
+          <Text style={[styles.detailLabel, { color: theme.text }]}>{'Retiros'}</Text>
           <Text style={[styles.detailValue, { color: theme.text }]}>-${totalWithdrawals.toLocaleString('es-ES')}</Text>
         </View>
-        
-        <View style={[styles.detailItem, styles.totalItem, { 
-          borderTopColor: theme.primaryLight 
+
+        <View style={[styles.detailItem, styles.totalItem, {
+          borderTopColor: theme.primaryLight
         }]}>
-          <Text style={[styles.totalLabel, { color: theme.text }]}>Ingresos netos</Text>
-          <Text style={[styles.totalValue, { 
-            color: netIncome >= 0 ? theme.success : theme.error 
+          <Text style={[styles.totalLabel, { color: theme.text }]}>{'Ingresos netos'}</Text>
+          <Text style={[styles.totalValue, {
+            color: netIncome >= 0 ? theme.success : theme.error
           }]}>
             ${netIncome.toLocaleString('es-ES')}
           </Text>
@@ -698,7 +697,7 @@ export default function CashReportScreen() {
         onPress={handleExportReport}
       >
         <Ionicons name="download-outline" size={20} color={theme.surface} />
-        <Text style={[styles.exportButtonText, { color: theme.surface }]}>{i18n.t('cash.exportReport')}</Text>
+        <Text style={[styles.exportButtonText, { color: theme.surface }]}>{'Exportar reporte'}</Text>
       </TouchableOpacity>
     </ScrollView>
   );

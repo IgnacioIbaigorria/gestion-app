@@ -16,7 +16,6 @@ import { cashService } from '../../../services/cashService';
 import { CashTransaction } from '../../../models/types';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import i18n from '../../../translations';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '@/contexts/ThemeContext';
 import { salesService } from '@/services/salesService';
@@ -64,7 +63,7 @@ export default function CashRegisterScreen() {
       const balance = await cashService.getCurrentBalance();
       setCurrentBalance(balance);
     } catch (error) {
-      Alert.alert('Error', i18n.t('cash.errorLoadData'));
+      Alert.alert('Error', 'No se pudo cargar el saldo');
       console.error(error);
     } finally {
       setLoading(false);
@@ -78,7 +77,7 @@ export default function CashRegisterScreen() {
 
     } catch (error) {
       console.error('Error syncing sales:', error);
-      Alert.alert('Error', i18n.t('cash.syncError'));
+      Alert.alert('Error', 'No se pudo sincronizar las ventas');
     } finally {
       setLoading(false);
     }
@@ -109,14 +108,14 @@ export default function CashRegisterScreen() {
   };
 
   const formatDate = (timestamp: any) => {
-    if (!timestamp) return i18n.t('common.unknownDate');
+    if (!timestamp) return 'Fecha desconocida';
 
     try {
       const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
       return format(date, 'dd/MM/yyyy HH:mm', { locale: es });
     } catch (error) {
       console.error('Error al formatear fecha:', error);
-      return i18n.t('common.invalidDate');
+      return 'Fecha invalida';
     }
   };
 
@@ -195,7 +194,7 @@ export default function CashRegisterScreen() {
       Alert.alert(
         'Error',
         'No se puede eliminar una venta',
-        [{ text: i18n.t('common.ok') }]
+        [{ text: 'Aceptar' }]
       );
       return;
     }
@@ -356,7 +355,7 @@ export default function CashRegisterScreen() {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={theme.primary} />
-        <Text style={[styles.loadingText, { color: theme.textLight }]}>{i18n.t('cash.loading')}</Text>
+        <Text style={[styles.loadingText, { color: theme.textLight }]}>{'Cargando'}</Text>
       </View>
     );
   }
@@ -446,8 +445,8 @@ export default function CashRegisterScreen() {
           <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: theme.text }]}>
-                {transactionType === 'deposit' ? i18n.t('cash.newDeposit') :
-                  transactionType === 'withdrawal' ? i18n.t('cash.newWithdrawal') : i18n.t('cash.newExpense')}
+                {transactionType === 'deposit' ? 'Nuevo deposito' :
+                  transactionType === 'withdrawal' ? 'Nuevo retiro' : 'Nuevo gasto'}
               </Text>
               <TouchableOpacity
                 onPress={() => setModalVisible(false)}
@@ -458,7 +457,7 @@ export default function CashRegisterScreen() {
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: theme.text }]}>{i18n.t('cash.amount')}</Text>
+              <Text style={[styles.label, { color: theme.text }]}>{'Monto'}</Text>
               <TextInput
                 style={[styles.input, {
                   backgroundColor: theme.background,
@@ -474,7 +473,7 @@ export default function CashRegisterScreen() {
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: theme.text }]}>{i18n.t('cash.description')}</Text>
+              <Text style={[styles.label, { color: theme.text }]}>{'Descripcion'}</Text>
               <TextInput
                 style={[styles.input, {
                   backgroundColor: theme.background,
@@ -483,7 +482,7 @@ export default function CashRegisterScreen() {
                 }]}
                 value={description}
                 onChangeText={setDescription}
-                placeholder={i18n.t('cash.descriptionPlaceholder')}
+                placeholder={'Descripcion'}
                 placeholderTextColor={theme.textLight}
               />
             </View>
@@ -500,7 +499,7 @@ export default function CashRegisterScreen() {
               {submitting ? (
                 <ActivityIndicator size="small" color={theme.surface} />
               ) : (
-                <Text style={[styles.submitButtonText, { color: theme.surface }]}>{i18n.t('cash.save')}</Text>
+                <Text style={[styles.submitButtonText, { color: theme.surface }]}>{'Guardar'}</Text>
               )}
             </TouchableOpacity>
           </View>

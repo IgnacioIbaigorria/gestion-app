@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, TextInput, Modal, Alert, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -6,8 +6,6 @@ import { productService } from '../../services/productService';
 import { salesService } from '../../services/salesService';
 import { cashService } from '../../services/cashService';
 import { settingsService } from '../../services/settingsService';
-import i18n from '../../translations';
-import { useLanguage } from '@/context/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Card } from '@/components/ui/Card';
 import { StatCard } from '@/components/ui/StatCard';
@@ -22,7 +20,6 @@ export default function DashboardScreen() {
   const [todaySales, setTodaySales] = useState<number>(0);
   const [todayTransactions, setTodayTransactions] = useState<number>(0);
   const [currentBalance, setCurrentBalance] = useState<number>(0);
-  const { locale } = useLanguage();
   const [lowStockCount, setLowStockCount] = useState<number>(0);
   const { theme, isDarkTheme } = useTheme();
   const [businessName, setBusinessName] = useState<string>('Punto Eco');
@@ -33,7 +30,7 @@ export default function DashboardScreen() {
     loadDashboardData();
     fetchLowStockCount();
     loadSettings();
-  }, [locale]);
+  }, []);
 
   const loadSettings = async () => {
     try {
@@ -99,7 +96,7 @@ export default function DashboardScreen() {
 
   const handleSaveBusinessName = async () => {
     if (!newBusinessName.trim()) {
-      Alert.alert(i18n.t('common.error'), i18n.t('dashboard.businessNameRequired'));
+      Alert.alert('Error', 'El nombre del negocio es requerido');
       return;
     }
 
@@ -107,10 +104,10 @@ export default function DashboardScreen() {
       await settingsService.updateSettings({ businessName: newBusinessName.trim() });
       setBusinessName(newBusinessName.trim());
       setIsEditingName(false);
-      Alert.alert(i18n.t('common.success'), i18n.t('dashboard.businessNameUpdated'));
+      Alert.alert('Exito', 'El nombre del negocio se actualizó correctamente');
     } catch (error) {
       console.error('Error updating business name:', error);
-      Alert.alert(i18n.t('common.error'), i18n.t('common.errorOccurred'));
+      Alert.alert('Error', 'Error al actualizar el nombre del negocio');
     }
   };
 
@@ -118,7 +115,7 @@ export default function DashboardScreen() {
     return (
       <ThemedView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={theme.primary} />
-        <ThemedText style={styles.loadingText}>{i18n.t('dashboard.loading')}</ThemedText>
+        <ThemedText style={styles.loadingText}>Cargando...</ThemedText>
       </ThemedView>
     );
   }
@@ -138,7 +135,7 @@ export default function DashboardScreen() {
       >
         <View style={styles.header}>
           <View>
-            <ThemedText style={styles.greeting}>{i18n.t('dashboard.subtitle')}</ThemedText>
+            <ThemedText style={styles.greeting}>Bienvenido</ThemedText>
             <TouchableOpacity onPress={handleEditBusinessName} style={styles.businessNameRow}>
               <ThemedText type="title" style={styles.businessName}>
                 {businessName}
@@ -210,7 +207,7 @@ export default function DashboardScreen() {
             <View style={[styles.actionIcon, { backgroundColor: theme.primary + '20' }]}>
               <Ionicons name="cart" size={24} color={theme.primary} />
             </View>
-            <ThemedText style={styles.actionText}>{i18n.t('dashboard.newSale')}</ThemedText>
+            <ThemedText style={styles.actionText}>Nueva venta</ThemedText>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -220,7 +217,7 @@ export default function DashboardScreen() {
             <View style={[styles.actionIcon, { backgroundColor: theme.success + '20' }]}>
               <Ionicons name="add-circle" size={24} color={theme.success} />
             </View>
-            <ThemedText style={styles.actionText}>{i18n.t('dashboard.newProduct')}</ThemedText>
+            <ThemedText style={styles.actionText}>Nuevo producto</ThemedText>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -230,7 +227,7 @@ export default function DashboardScreen() {
             <View style={[styles.actionIcon, { backgroundColor: theme.warning + '20' }]}>
               <Ionicons name="cash" size={24} color={theme.warning} />
             </View>
-            <ThemedText style={styles.actionText}>{i18n.t('common.cash')}</ThemedText>
+            <ThemedText style={styles.actionText}>{'Caja'}</ThemedText>
           </TouchableOpacity>
         </ScrollView>
 
@@ -243,7 +240,7 @@ export default function DashboardScreen() {
           <View style={styles.modalOverlay}>
             <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
               <ThemedText type="heading" style={styles.modalTitle}>
-                {i18n.t('dashboard.editBusinessName')}
+                Editar nombre del negocio
               </ThemedText>
               <TextInput
                 style={[styles.input, {
@@ -253,7 +250,7 @@ export default function DashboardScreen() {
                 }]}
                 value={newBusinessName}
                 onChangeText={setNewBusinessName}
-                placeholder={i18n.t('dashboard.businessNamePlaceholder')}
+                placeholder="Nombre del negocio"
                 placeholderTextColor={theme.textLight}
               />
               <View style={styles.modalButtons}>
@@ -264,7 +261,7 @@ export default function DashboardScreen() {
                     setIsEditingName(false);
                   }}
                 >
-                  <ThemedText>{i18n.t('common.cancel')}</ThemedText>
+                  <ThemedText>{'Cancelar'}</ThemedText>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.modalButton, { backgroundColor: theme.primary, borderColor: theme.primary }]}
@@ -273,7 +270,7 @@ export default function DashboardScreen() {
                     handleSaveBusinessName();
                   }}
                 >
-                  <ThemedText style={{ color: 'white' }}>{i18n.t('common.save')}</ThemedText>
+                  <ThemedText style={{ color: 'white' }}>{'Guardar'}</ThemedText>
                 </TouchableOpacity>
               </View>
             </View>
