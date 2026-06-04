@@ -24,7 +24,7 @@ A comprehensive management application for small businesses, focusing on invento
 
 1. Clone this repository
 2. Run `npm install` to install dependencies
-3. Configure your Firebase database (see Configuration section)
+3. Configure your Supabase database (see Configuration section)
 4. Run `npx expo start` to start the development server
 
 ## Download
