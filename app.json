@@ -4,12 +4,12 @@
     "slug": "punto-eco-gestion",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/puntoeco.png",
+    "icon": "./assets/images/logo_gestion.png",
     "scheme": "myapp",
     "splash": {
-      "image": "./assets/images/puntoeco_splash_1280.png",
+      "image": "./assets/images/logo_gestion_splash.png",
       "resizeMode": "cover",
-      "backgroundColor": "#91b578"
+      "backgroundColor": "#f4f4fc"
     },
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -20,8 +20,8 @@
       "enableProguardInReleaseBuilds": true,
       "enableShrinkResources": true,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/puntoeco.png",
-        "backgroundColor": "#91b578",
+        "foregroundImage": "./assets/images/logo_gestion.png",
+        "backgroundColor": "#f4f4fc",
         "resizeMode": "contain"
       },
       "package": "com.ignacioivan00.puntoecogestion"
@@ -44,7 +44,10 @@
             "enableShrinkResources": true
           }
         }
-      ]
+      ],
+      "expo-font",
+      "expo-localization",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

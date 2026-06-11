@@ -18,9 +18,8 @@ import { Tag } from '../../../models/types';
 import { tagService } from '../../../services/tagService';
 import { categoryService } from '../../../services/categoryService';
 import { Category } from '../../../models/types';
-import i18n from '@/translations';
-import { useIsFocused } from '@react-navigation/native';
 import { useTheme } from '@/contexts/ThemeContext';
+import { set } from 'date-fns';
 
 export default function AddEditProductScreen() {
   const { theme } = useTheme();
@@ -32,15 +31,17 @@ export default function AddEditProductScreen() {
   const [costPrice, setCostPrice] = useState<string>('0');
   const [sellingPrice, setSellingPrice] = useState<string>('0');
   const [profitMargin, setProfitMargin] = useState<string>('0');
+  const [cantidadPorCaja, setCantidadPorCaja] = useState<string>('0');
+  const [cantidadPorBolsa, setCantidadPorBolsa] = useState<string>('');
+  const [unitPrice, setUnitPrice] = useState<string>('0');
+  const [units, setUnits] = useState<string>('0');
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [lowStockThreshold, setLowStockThreshold] = useState<string>('5');
+  const [lowStockThreshold, setLowStockThreshold] = useState<string>('2');
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
-  
-  // Add isFocused hook to detect when screen comes into focus
-  const isFocused = useIsFocused();
+
 
   // Reset form when component mounts or when id changes
   useEffect(() => {
@@ -52,12 +53,13 @@ export default function AddEditProductScreen() {
       resetForm();
     }
   }, [id]);
-  
+
   // Function to reset all form fields to default values
   const resetForm = () => {
     setName('');
     setQuantity('0');
     setCostPrice('0');
+    setUnitPrice('0');
     setSellingPrice('0');
     setProfitMargin('0');
     setIsEditing(false);
@@ -65,19 +67,19 @@ export default function AddEditProductScreen() {
     setLowStockThreshold('5');
     setSelectedCategory('');
   };
-  
+
   // Update this useEffect to reload tags and categories when screen is focused
   useEffect(() => {
-    if (isFocused) {
+    if (id) {
       loadTags();
       loadCategories();
-      
+
       // If no ID is provided and the screen is focused, reset the form
       if (!id) {
         resetForm();
       }
     }
-  }, [isFocused, id]);
+  }, [id]);
 
   const loadTags = async () => {
     try {
@@ -102,16 +104,19 @@ export default function AddEditProductScreen() {
     try {
       setInitialLoading(true);
       const product = await productService.getProductById(productId);
-      
+
       if (product) {
         setName(product.name);
         setQuantity(product.quantity?.toString() || '0');
         setCostPrice(product.cost_price?.toString() || '0');
+        setUnitPrice(product.unit_price?.toString() || '0');
+        setUnits(product.units?.toString() || '0');
         setSellingPrice(product.selling_price?.toString() || '0');
         setProfitMargin(product.profit_margin?.toString() || '0');
         setSelectedTags(product.tags || []);
         setLowStockThreshold(product.low_stock_threshold?.toString() || '5');
         setSelectedCategory(product.category_id || '');
+        setCantidadPorCaja(product.cantidad_por_caja?.toString() || '0');
       } else {
         Alert.alert('Error', 'No se encontró el producto');
         router.back();
@@ -128,31 +133,40 @@ export default function AddEditProductScreen() {
   // Fix the profit margin calculation
   const calculateProfitMargin = () => {
     const cost = parseFloat(costPrice) || 0;
-    const selling = parseFloat(sellingPrice) || 0;
-    
-    console.log('Calculating profit margin:', { cost, selling });
-    
-    if (cost > 0 && selling > 0) {
-      // Check if selling price is less than cost price
-      if (selling < cost) {
-        Alert.alert('Advertencia', 'El precio de venta es menor que el precio de costo');
+    const unitSellingPrice = parseFloat(unitPrice) || 0; // suponiendo que este es tu input de venta por unidad
+
+    if (cost > 0 && unitSellingPrice > 0) {
+      if (unitSellingPrice < cost) {
+        Alert.alert('Advertencia', 'El precio de venta unitario es menor que el precio de costo');
       }
-      
-      const margin = ((selling - cost) / cost) * 100;
-      console.log('Calculated margin:', margin);
+
+      const margin = ((unitSellingPrice - cost) / cost) * 100;
       setProfitMargin(margin.toFixed(2));
     }
   };
 
+
   const calculateSellingPrice = () => {
-    const cost = parseFloat(costPrice) || 0;
-    const margin = parseFloat(profitMargin) || 0;
-    
-    if (cost > 0 && margin >= 0) {
-      const selling = cost * (1 + margin / 100);
+    const unit = parseFloat(unitPrice) || 0;
+    const cantidadCaja = parseFloat(cantidadPorCaja) || 0;
+
+    if (unit > 0 && cantidadCaja > 0) {
+      const selling = unit * cantidadCaja;
       setSellingPrice(selling.toFixed(0));
     }
   };
+
+  const calculateUnitPrice = () => {
+    const cost = parseFloat(costPrice) || 0;
+    const margin = parseFloat(profitMargin) || 0;
+    const cantidadCaja = parseInt(cantidadPorCaja) || 0;
+
+    if (cost > 0 && margin >= 0) {
+      const unitPrice = cost * (1 + margin / 100);
+      setUnitPrice(unitPrice.toFixed(2));
+      setSellingPrice((unitPrice * cantidadCaja).toFixed(0));
+    }
+  }
 
   const handleSave = async () => {
     if (!name) {
@@ -173,7 +187,7 @@ export default function AddEditProductScreen() {
     // Add validation for negative profit margin
     if (parseFloat(sellingPrice) < parseFloat(costPrice)) {
       Alert.alert(
-        'Advertencia', 
+        'Advertencia',
         'El precio de venta es menor que el precio de costo. ¿Desea continuar?',
         [
           {
@@ -198,7 +212,7 @@ export default function AddEditProductScreen() {
   const saveProduct = async () => {
     try {
       setLoading(true);
-      
+
       const productData: Omit<Product, 'id'> = {
         name,
         quantity: parseInt(quantity, 10) || 0,
@@ -208,18 +222,24 @@ export default function AddEditProductScreen() {
         tags: selectedTags,
         low_stock_threshold: parseInt(lowStockThreshold, 10) || 5,
         category_id: selectedCategory || null,
+        cantidad_por_caja: parseInt(cantidadPorCaja, 10) || 0,
+        unit_price: parseFloat(unitPrice) || 0,
+        units: parseInt(units) || 0
       };
-      
+
       let updatedProductId = id;
-      
+
       if (isEditing && id) {
         await productService.updateProduct(id, productData);
         Alert.alert('Éxito', 'Producto actualizado correctamente', [
-          { 
-            text: 'OK', 
+          {
+            text: 'OK',
             onPress: () => {
               // Return to products list with the updated product ID as a parameter
-              router.replace(`/productos?updatedProductId=${id}`);
+              router.push({
+                pathname: '/productos',
+                params: { updatedProductId: id }
+              });
             }
           }
         ]);
@@ -227,8 +247,8 @@ export default function AddEditProductScreen() {
         const newProduct = await productService.addProduct(productData);
         updatedProductId = newProduct.id || '';
         Alert.alert('Éxito', 'Producto agregado correctamente', [
-          { 
-            text: 'OK', 
+          {
+            text: 'OK',
             onPress: () => {
               // Return to products list with the new product ID as a parameter
               router.replace(`/productos?updatedProductId=${newProduct.id}`);
@@ -243,6 +263,24 @@ export default function AddEditProductScreen() {
       setLoading(false);
     }
   };
+  const calculateBoxesFromUnits = () => {
+    const unidades = parseFloat(units) || 0;
+    const porCaja = parseFloat(cantidadPorCaja) || 1;
+
+    if (porCaja > 0) {
+      setQuantity(Math.floor(unidades / porCaja).toString());
+    }
+  };
+
+  const calculateUnitsFromBoxes = () => {
+    const cajas = parseFloat(quantity) || 0;
+    const porCaja = parseFloat(cantidadPorCaja) || 1;
+
+    setUnits((cajas * porCaja).toString());
+  };
+
+
+
 
   if (initialLoading) {
     return (
@@ -261,54 +299,73 @@ export default function AddEditProductScreen() {
       <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
         <View style={[styles.formContainer, { backgroundColor: theme.surface }]}>
           <Text style={[styles.title, { color: theme.text }]}>
-            {isEditing ? i18n.t('products.edit') : i18n.t('products.add')}
+            {isEditing ? 'Editar producto' : 'Agregar producto'}
           </Text>
-          
+
           <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: theme.text }]}>{i18n.t('products.productName')}</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Nombre de producto</Text>
             <TextInput
-              style={[styles.input, { 
-                backgroundColor: theme.background, 
+              style={[styles.input, {
+                backgroundColor: theme.background,
                 borderColor: theme.primaryLight,
                 color: theme.text
               }]}
               value={name}
               onChangeText={setName}
-              placeholder={i18n.t('products.enterProductName')}
+              placeholder="Ingrese el nombre del producto"
               placeholderTextColor={theme.textLight}
             />
           </View>
-          
+
           <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: theme.text }]}>{i18n.t('products.quantity')}</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Cantidad (Cajas)</Text>
             <TextInput
-              style={[styles.input, { 
-                backgroundColor: theme.background, 
+              style={[styles.input, {
+                backgroundColor: theme.background,
                 borderColor: theme.primaryLight,
                 color: theme.text
               }]}
               value={quantity}
               onChangeText={setQuantity}
+              onEndEditing={calculateUnitsFromBoxes}
               keyboardType="numeric"
               placeholder="0"
               placeholderTextColor={theme.textLight}
             />
           </View>
-          
           <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: theme.text }]}>{i18n.t('products.costPrice')}</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Unidades</Text>
             <TextInput
-              style={[styles.input, { 
-                backgroundColor: theme.background, 
+              style={[styles.input, {
+                backgroundColor: theme.background,
+                borderColor: theme.primaryLight,
+                color: theme.text
+              }]}
+              value={units}
+              onChangeText={setUnits}
+              onEndEditing={calculateBoxesFromUnits}
+              keyboardType="numeric"
+              placeholder="0"
+              placeholderTextColor={theme.textLight}
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={[styles.label, { color: theme.text }]}>Precio de costo unitario</Text>
+            <TextInput
+              style={[styles.input, {
+                backgroundColor: theme.background,
                 borderColor: theme.primaryLight,
                 color: theme.text
               }]}
               value={costPrice}
               onChangeText={setCostPrice}
               onEndEditing={() => {
-                if (parseFloat(sellingPrice) > 0) {
+                if (parseFloat(unitPrice) > 0) {
                   calculateProfitMargin();
+                  calculateSellingPrice();
                 } else if (parseFloat(profitMargin) > 0) {
+                  calculateUnitPrice();
                   calculateSellingPrice();
                 }
               }}
@@ -317,36 +374,55 @@ export default function AddEditProductScreen() {
               placeholderTextColor={theme.textLight}
             />
           </View>
-          
+
           <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: theme.text }]}>{i18n.t('products.sellingPrice')}</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Precio de venta unitario</Text>
             <TextInput
-              style={[styles.input, { 
-                backgroundColor: theme.background, 
+              style={[styles.input, {
+                backgroundColor: theme.background,
                 borderColor: theme.primaryLight,
                 color: theme.text
               }]}
-              value={sellingPrice}
-              onChangeText={setSellingPrice}
-              onEndEditing={calculateProfitMargin}
+              value={unitPrice}
+              onChangeText={setUnitPrice}
+              onEndEditing={() => {
+                calculateProfitMargin();
+                calculateSellingPrice();
+              }}
               keyboardType="numeric"
               placeholder="0.00"
               placeholderTextColor={theme.textLight}
             />
           </View>
-          
+
           <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: theme.text }]}>{i18n.t('products.profitMargin')} (%)</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Precio de venta por caja</Text>
             <TextInput
-              style={[styles.input, { 
-                backgroundColor: theme.background, 
+              style={[styles.input, {
+                backgroundColor: theme.background,
+                borderColor: theme.primaryLight,
+                color: theme.text
+              }]}
+              value={sellingPrice}
+              onChangeText={setSellingPrice}
+              keyboardType="numeric"
+              placeholder="0.00"
+              placeholderTextColor={theme.textLight}
+            />
+          </View>
+
+
+          <View style={styles.formGroup}>
+            <Text style={[styles.label, { color: theme.text }]}>Margen de ganancia (%)</Text>
+            <TextInput
+              style={[styles.input, {
+                backgroundColor: theme.background,
                 borderColor: theme.primaryLight,
                 color: theme.text
               }]}
               value={profitMargin}
               onChangeText={setProfitMargin}
               onEndEditing={() => {
-                // Recalcular precio de venta cuando termina de editar el margen
                 calculateSellingPrice();
               }}
               keyboardType="numeric"
@@ -355,11 +431,30 @@ export default function AddEditProductScreen() {
             />
           </View>
           <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: theme.text }]}>{i18n.t('products.lowStock')}</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Cantidad por caja</Text>
+            <TextInput
+              style={[styles.input, {
+                backgroundColor: theme.background,
+                borderColor: theme.primaryLight,
+                color: theme.text
+              }]}
+              value={cantidadPorCaja}
+              onChangeText={text => setCantidadPorCaja(text.replace(/[^0-9]/g, ''))}
+              onEndEditing={() => {
+                calculateSellingPrice();
+                calculateUnitsFromBoxes();
+              }}
+              keyboardType="numeric"
+              placeholder="Ej: 12"
+              placeholderTextColor={theme.textLight}
+            />
+          </View>
+          <View style={styles.formGroup}>
+            <Text style={[styles.label, { color: theme.text }]}>Stock mínimo</Text>
             <View style={styles.thresholdContainer}>
               <TextInput
-                style={[styles.input, { 
-                  backgroundColor: theme.background, 
+                style={[styles.input, {
+                  backgroundColor: theme.background,
                   borderColor: theme.primaryLight,
                   color: theme.text
                 }]}
@@ -370,7 +465,7 @@ export default function AddEditProductScreen() {
                 placeholderTextColor={theme.textLight}
               />
               <Text style={[styles.thresholdHelperText, { color: theme.textLight }]}>
-                {i18n.t('products.lowStockThresholdDesc')}
+                Avisar cuando se tenga una cantidad igual o menor a ésta.
               </Text>
             </View>
           </View>
@@ -383,14 +478,14 @@ export default function AddEditProductScreen() {
                   key={tag.id}
                   style={[
                     styles.tagButton,
-                    { 
+                    {
                       backgroundColor: selectedTags.includes(tag.id!) ? tag.color : theme.surface,
                       borderColor: tag.color || theme.primary,
-                      borderWidth: 1, 
+                      borderWidth: 1,
                     }
                   ]}
                   onPress={() => {
-                    setSelectedTags(prev => 
+                    setSelectedTags(prev =>
                       prev.includes(tag.id!)
                         ? prev.filter(t => t !== tag.id)
                         : [...prev, tag.id!]
@@ -399,9 +494,9 @@ export default function AddEditProductScreen() {
                 >
                   <Text style={[
                     styles.tagButtonText,
-                    { 
+                    {
                       color: selectedTags.includes(tag.id!) ? theme.surface : theme.text || theme.primary,
-                      borderColor: tag.color || theme.primary, 
+                      borderColor: tag.color || theme.primary,
                     }
                   ]}>
                     {tag.name}
@@ -413,7 +508,7 @@ export default function AddEditProductScreen() {
               style={styles.manageTags}
               onPress={() => router.push('/productos/tags')}
             >
-              <Text style={[styles.manageTagsText, { color: theme.text }]}>{i18n.t('products.manageTags')}</Text>
+              <Text style={[styles.manageTagsText, { color: theme.text }]}>Administrar etiquetas</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.formGroup}>
@@ -424,14 +519,14 @@ export default function AddEditProductScreen() {
                   key={category.id}
                   style={[
                     styles.categoryButton,
-                    { 
+                    {
                       backgroundColor: selectedCategory === category.id ? category.color : theme.surface,
-                      borderColor: category.color || theme.primary ,
+                      borderColor: category.color || theme.primary,
                       borderWidth: 1,
                     }
                   ]}
                   onPress={() => {
-                    setSelectedCategory(currentCategory => 
+                    setSelectedCategory(currentCategory =>
                       currentCategory === category.id ? '' : category.id!
                     );
                   }}
@@ -449,7 +544,7 @@ export default function AddEditProductScreen() {
               style={styles.manageCategories}
               onPress={() => router.push('/productos/categorias')}
             >
-              <Text style={[styles.manageCategoriesText, { color: theme.text }]}>{i18n.t('products.manageCategories')}</Text>
+              <Text style={[styles.manageCategoriesText, { color: theme.text }]}>Administrar categorías</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.buttonContainer}>
@@ -458,9 +553,9 @@ export default function AddEditProductScreen() {
               onPress={() => router.back()}
               disabled={loading}
             >
-              <Text style={[styles.buttonText, { color: theme.surface }]}>{i18n.t('common.cancel')}</Text>
+              <Text style={[styles.buttonText, { color: theme.surface }]}>Cancelar</Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity
               style={[styles.saveButton, { backgroundColor: theme.primary }]}
               onPress={handleSave}
@@ -469,7 +564,7 @@ export default function AddEditProductScreen() {
               {loading ? (
                 <ActivityIndicator size="small" color={theme.surface} />
               ) : (
-                <Text style={[styles.buttonText, { color: theme.surface }]}>{i18n.t('common.save')}</Text>
+                <Text style={[styles.buttonText, { color: theme.surface }]}>Guardar</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -508,7 +603,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   formGroup: {
-    marginBottom: 16,
+    marginBottom: 10,
   },
   label: {
     fontSize: 16,
@@ -574,7 +669,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   thresholdHelperText: {
-    fontSize: 12,
+    fontSize: 13,
     marginTop: 4,
     marginLeft: 4,
   },

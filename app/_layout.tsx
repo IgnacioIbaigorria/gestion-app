@@ -4,12 +4,11 @@ import { router, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import Colors from '@/constants/Colors';
-import { LanguageProvider } from '../context/LanguageContext';
 import { TouchableOpacity, SafeAreaView, View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import i18n from '@/translations';
-import { useLanguage } from '../context/LanguageContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
+import React from 'react';
+import { ScrollView } from 'react-native-gesture-handler';
 // Remove the initializeApp import since we don't need it anymore
 // import { initializeApp } from '../services/appInitializer';
 // Remove the Constants import as well if not used elsewhere
@@ -45,11 +44,11 @@ export default function RootLayout() {
         if (loaded) {
           // Remove the environment variable logging
           // console.log('ENV VARS in effect:', {...});
-          
+
           // Remove database initialization
           // const result = await initializeApp();
           // setDbInitialized(result);
-          
+
           // Just hide the splash screen once fonts are loaded
           await SplashScreen.hideAsync();
         }
@@ -60,7 +59,7 @@ export default function RootLayout() {
         await SplashScreen.hideAsync(); // Hide splash screen even on error
       }
     }
-    
+
     initialize();
   }, [loaded]);
 
@@ -69,34 +68,20 @@ export default function RootLayout() {
     return null;
   }
 
-  // Remove the database error check
-  // if (dbError) {
-  //   return (
-  //     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-  //       <Text style={{ fontSize: 18, color: 'red', textAlign: 'center', marginBottom: 20 }}>
-  //         Error connecting to database. Please check your connection and restart the app.
-  //       </Text>
-  //       <Text style={{ fontSize: 14, color: 'gray' }}>{dbError}</Text>
-  //     </View>
-  //   );
-  // }
-
   return (
     <ThemeProvider>
-      <LanguageProvider>
-        <RootLayoutNav />
-      </LanguageProvider>
+      <RootLayoutNav />
     </ThemeProvider>
   );
 }
 
 function RootLayoutNav() {
-  const { locale } = useLanguage();
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.primary }}>
+    <View style={{ flex: 1, backgroundColor: Colors.primary }}>
       <Stack
         screenOptions={{
+          headerShown: false,
           headerStyle: {
             backgroundColor: Colors.primary,
           },
@@ -104,8 +89,7 @@ function RootLayoutNav() {
           headerTitleStyle: {
             fontWeight: 'bold',
           },
-          headerTitleAlign: 'center',
-          statusBarStyle: 'inverted',
+          statusBarStyle: 'light',
           statusBarHidden: false,
           statusBarAnimation: 'slide',
           statusBarBackgroundColor: Colors.primary,
@@ -117,15 +101,8 @@ function RootLayoutNav() {
             headerShown: false,
           }}
         />
-        <Stack.Screen
-          name="settings/language"
-          options={{
-            presentation: 'modal',
-            headerTitle: i18n.t('settings.language'),
-          }}
-        />
       </Stack>
-    </SafeAreaView>
+    </View>
   );
 }
 

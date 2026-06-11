@@ -2,7 +2,6 @@ import React from 'react';
 import { View, TouchableOpacity, StyleSheet, Modal, Text } from 'react-native';
 import Colors from '../constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
-import i18n from '../translations';
 
 // Colores predefinidos para elegir
 const colorOptions = [
@@ -30,12 +29,12 @@ const ColorPicker = ({ visible, onClose, onSelectColor, selectedColor }: ColorPi
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
           <View style={styles.header}>
-            <Text style={styles.title}>{i18n.t('common.selectColor')}</Text>
+            <Text style={styles.title}>Seleccionar Color</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <Ionicons name="close" size={24} color={Colors.text} />
             </TouchableOpacity>
           </View>
-          
+
           <View style={styles.colorGrid}>
             {colorOptions.map((color, index) => (
               <TouchableOpacity

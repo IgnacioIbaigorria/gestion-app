@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React from 'react';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { Category, Product } from '../models/types';
+import { Category, Product, Tag } from '../models/types';
 import { tagService } from '../services/tagService';
-import { Tag } from '../models/types';
 import { categoryService } from '@/services/categoryService';
-import i18n from '@/translations';
 import { useTheme } from '@/contexts/ThemeContext';
 import { productService } from '@/services/productService';
-import { hi } from 'date-fns/locale';
+import { ThemedText } from './ThemedText';
+import { Colors } from '@/constants/Colors';
+import { Card } from './ui/Card';
 
 // Create caches for categories and tags to avoid repeated API calls
 let categoriesCache: Category[] = [];
@@ -33,278 +33,195 @@ const preloadMetadata = async () => {
 preloadMetadata();
 
 interface ProductItemProps {
-  product: Product & { tagObjects?: Tag[] };
+  product: Product & {
+    tagObjects?: Tag[];
+    categoryObject?: Category;
+  };
   onDelete: (id: string) => void;
   highlighted?: boolean;
-  category?: Category;  // This prop is optional and may be passed from parent
+  selected?: boolean;
+  selectionMode?: boolean;
+  onLongPress?: () => void;
+  onPress?: () => void;
 }
 
-export default function ProductItem({ product, onDelete, highlighted, category }: ProductItemProps) {
+// Componente memoizado para evitar re-renders innecesarios
+function ProductItem({
+  product,
+  onDelete,
+  highlighted,
+  selected = false,
+  selectionMode = false,
+  onLongPress,
+  onPress
+}: ProductItemProps) {
   const { theme } = useTheme();
-  const [productTags, setProductTags] = useState<Tag[]>([]);
-  const [productCategory, setProductCategory] = useState<Category | null>(null);
-  
-  // Fix the low stock calculation to properly compare values
-  const isLowStock = (product.quantity || 0) <= (product.low_stock_threshold || 5);
-  
-  useEffect(() => {
-    // Clear previous tags when product changes
-    setProductTags([]);
-    
-    // First priority: use tagObjects if available
-    if (product.tagObjects && product.tagObjects.length > 0) {
-      setProductTags(product.tagObjects);
-    }
-    // Second priority: use tags IDs with tagsCache
-    else if (product.tags && product.tags.length > 0 && tagsCache.length > 0) {
-      const filteredTags = tagsCache.filter(tag => product.tags?.includes(tag.id || ''));
-      setProductTags(filteredTags);
-    }
-    // Last resort: fetch tags from service
-    else if (product.id) {
-      const getProductDetails = async () => {
-        try {
-          // Try to get from cache first
-          const productWithDetails = await productService.getProductWithDetails(product.id!);
-          if (productWithDetails.tagObjects && productWithDetails.tagObjects.length > 0) {
-            setProductTags(productWithDetails.tagObjects);
-          } else if (productWithDetails.tags && productWithDetails.tags.length > 0) {
-            // If we have tag IDs but no tag objects, use the cache to get the full objects
-            if (tagsCache.length === 0) {
-              tagsCache = await tagService.getAllTags();
-            }
-            const filteredTags = tagsCache.filter(tag => 
-              productWithDetails.tags?.includes(tag.id || '')
-            );
-            setProductTags(filteredTags);
-          }
-        } catch (error) {
-          console.error('Error getting product details:', error);
-        }
-      };
-      getProductDetails();
-    }
-    
-    // Only load category if not provided as prop
-    if (!category && product.category_id) {
-      if (categoriesCache.length > 0) {
-        const foundCategory = categoriesCache.find(cat => cat.id === product.category_id);
-        if (foundCategory) {
-          setProductCategory(foundCategory);
-        }
-      } else {
-        loadCategory();
-      }
-    } else if (category) {
-      setProductCategory(category);
-    }
-  }, [product.id, product.name, product.cost_price, product.selling_price, product.tags, product.tagObjects, category]); // Add specific dependencies
-  
-  
-  const loadCategory = async () => {
-    try {
-      if (product.category_id) {
-        if (categoriesCache.length === 0) {
-          categoriesCache = await categoryService.getAllCategories();
-        }
-        const foundCategory = categoriesCache.find(cat => cat.id === product.category_id);
-        if (foundCategory) {
-          setProductCategory(foundCategory);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading category:', error);
-    }
+
+  // Usar directamente las props pre-cargadas
+  const productTags = product.tagObjects || [];
+  const productCategory = product.categoryObject || null;
+
+  const isLowStock = (product.quantity || 0) <= (product.low_stock_threshold || 2);
+
+  const handlePress = () => {
+    productService.clearProductCache(product.id!);
+    router.push(`/productos/${product.id}`);
   };
 
   return (
     <TouchableOpacity
-      style={[
-        styles.container,
-        { backgroundColor: theme.surface },
-        highlighted && {
-          borderWidth: 1,
-          borderColor: theme.primary,
-        },
-        isLowStock && { 
-          borderWidth: 1,
-          borderColor: theme.warning,
-          backgroundColor: theme.warningLight
-        }
-      ]}
-      onPress={() => {
-        // Clear the cache for this product before navigating
-        productService.clearProductCache(product.id!);
-        router.push(`/productos/${product.id}`);
-      }}
+      activeOpacity={0.7}
+      onPress={handlePress}
     >
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <Text style={[styles.name, { color: theme.text }]}>{product.name}</Text>
-        </View>
-        
-        <View style={styles.details}>
-          <Text style={[styles.price, { color: theme.text }]}>
-            ${product.selling_price}
-          </Text>
-          <View style={styles.stockContainer}>
-          {isLowStock && (
-              <Ionicons 
-                name="warning" 
-                size={16} 
-                color={theme.warning} 
-                style={styles.stockWarningIcon} 
-              />
-            )}
-            <Text style={[
-              styles.stock,
-              { color: isLowStock ? theme.warning : theme.textLight },
-              isLowStock && { fontWeight: '500' }
-            ]}>
-              {i18n.t('products.stock')}: {product.quantity || 0}
-            </Text>
+      <Card
+        style={[
+          styles.cardContainer,
+          selected && { backgroundColor: theme.background + '10', borderColor: theme.primary, borderWidth: 1 },
+          highlighted && { borderColor: theme.highlight, borderWidth: 1 },
+          isLowStock && { backgroundColor: theme.warning + '10', borderColor: theme.warning, borderWidth: 1 }
+        ]}
+        variant='outlined'
+      >
+        <View style={styles.topRow}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+            <ThemedText type="defaultSemiBold" style={styles.name} numberOfLines={1}>{product.name}</ThemedText>
+          </View>
+
+          <View style={styles.actionButtons}>
+            <TouchableOpacity onPress={() => onDelete(product.id!)} style={styles.iconButton}>
+              <Ionicons name="trash-outline" size={18} color={theme.error} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                productService.clearProductCache(product.id!);
+                router.push(`/productos/nuevo?id=${product.id}&returnTo=productos`);
+              }}
+              style={styles.iconButton}
+            >
+              <Ionicons name="pencil" size={18} color={theme.primary} />
+            </TouchableOpacity>
           </View>
         </View>
 
-        <View style={styles.metadataContainer}>
-          {productTags.length > 0 && (
-            <View style={styles.tagsContainer}>
-              {productTags.map((tag) => (
-                <View 
-                  key={tag.id} 
-                  style={[
-                    styles.tag,
-                    { backgroundColor: theme.surface || theme.primaryLight },
-                    { borderWidth: 1, borderColor: tag.color || theme.primaryLight }
-                  ]}
-                >
-                  <Text style={[styles.tagText, { color: theme.text }]}>{tag.name}</Text>
-                </View>
-              ))}
-            </View>
-          )}
+        <View style={styles.pricingRow}>
+          <View>
+            <ThemedText style={styles.priceLabel}>Caja</ThemedText>
+            <ThemedText type="defaultSemiBold" style={{ color: theme.success }}>${product.selling_price.toLocaleString('es-ES')}</ThemedText>
+          </View>
+          <View>
+            <ThemedText style={styles.priceLabel}>Unidad</ThemedText>
+            <ThemedText type="defaultSemiBold">${product.unit_price.toLocaleString('es-ES')}</ThemedText>
+          </View>
+          <View>
+            <ThemedText style={styles.priceLabel}>Cajas</ThemedText>
+            <ThemedText style={[isLowStock && { color: theme.warning, fontWeight: 'bold' }]}>
+              {product.quantity || 0}
+            </ThemedText>
+          </View>
+          <View>
+            <ThemedText style={styles.priceLabel}>Unidades</ThemedText>
+            <ThemedText style={[isLowStock && { color: theme.warning, fontWeight: 'bold' }]}>
+              {product.units || 0}
+            </ThemedText>
+          </View>
         </View>
-      </View>
 
-      <TouchableOpacity
-        style={styles.editButton}
-        onPress={() => {
-          // Clear the cache for this product before navigating to edit
-          productService.clearProductCache(product.id!);
-          router.push(`/productos/nuevo?id=${product.id}`);
-        }}
-      >
-        <Ionicons name="pencil" size={20} color={theme.primary} />
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.deleteButton}
-        onPress={() => onDelete(product.id!)}
-      >
-        <Ionicons name="trash-outline" size={20} color={theme.error} />
-      </TouchableOpacity>
+        {(productTags.length > 0) && (
+          <View style={styles.tagsRow}>
+            {productTags.map(tag => (
+              <View key={tag.id} style={[styles.tagBadge, { borderColor: tag.color || theme.border }]}>
+                <View style={[styles.tagDot, { backgroundColor: tag.color || theme.primary }]} />
+                <ThemedText style={styles.tagText}>{tag.name}</ThemedText>
+              </View>
+            ))}
+          </View>
+        )}
+      </Card>
     </TouchableOpacity>
   );
 }
 
+// Exportar con memo y comparación personalizada
+export default React.memo(ProductItem, (prevProps, nextProps) => {
+  // Solo re-renderizar si estas props cambian
+  return (
+    prevProps.product.id === nextProps.product.id &&
+    prevProps.product.name === nextProps.product.name &&
+    prevProps.product.selling_price === nextProps.product.selling_price &&
+    prevProps.product.unit_price === nextProps.product.unit_price &&
+    prevProps.product.quantity === nextProps.product.quantity &&
+    prevProps.product.units === nextProps.product.units &&
+    prevProps.highlighted === nextProps.highlighted &&
+    prevProps.selected === nextProps.selected &&
+    prevProps.selectionMode === nextProps.selectionMode
+  );
+});
+
 const styles = StyleSheet.create({
-  container: {
-    borderRadius: 12,
-    padding: 12,
+  cardContainer: {
+    padding: 16,
     marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
   },
-  content: {
-    flex: 1,
-  },
-  header: {
+  topRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  selectionCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#E2E8F0',
+    marginRight: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   name: {
     fontSize: 16,
-    fontWeight: '600',
     flex: 1,
   },
-  warningBadge: {
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+  actionButtons: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: 8,
+    gap: 8,
   },
-  warningText: {
-    fontSize: 12,
-    fontWeight: '500',
-    marginLeft: 4,
+  iconButton: {
+    padding: 4,
   },
-  details: {
+  pricingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
-  price: {
-    fontSize: 16,
-    fontWeight: '500',
+  priceLabel: {
+    fontSize: 12,
+    color: '#94A3B8', // Slate 400
+    marginBottom: 2,
   },
-  stock: {
-    fontSize: 14,
-  },
-  editButton: {
-    padding: 4,
-    marginLeft: 12,
-  },
-  deleteButton: {
-    padding: 4,
-    marginLeft: 0,
-  },
-  tagsContainer: {
+  tagsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: 8,
-    gap: 4,
+    gap: 8,
   },
-  tag: {
-    borderRadius: 12,
+  tagBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  tagDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 6,
   },
   tagText: {
     fontSize: 12,
-    fontWeight: '500',
-  },
-  categoryBadge: {
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    marginLeft: 8,
-  },
-  categoryText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  metadataContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 8,
-    gap: 4,
-    alignItems: 'center',
-  },
-  stockContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  
-  stockWarningIcon: {
-    marginRight: 2,
   },
 });

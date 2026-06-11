@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { tagService } from '@/services/tagService';
-import i18n from '@/translations';
 import { Tag } from '../../../../models/types';
 import ColorPicker from '../../../../components/ColorPicker';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -26,7 +25,7 @@ export default function TagsScreen() {
       const tagsData = await tagService.getAllTags();
       setTags(tagsData);
     } catch (error) {
-      Alert.alert(i18n.t('common.error'), i18n.t('tags.errorAddTag'));
+      Alert.alert('Error', 'Error al cargar las etiquetas');
       console.error(error);
     } finally {
       setLoading(false);
@@ -35,22 +34,22 @@ export default function TagsScreen() {
 
   const handleAddTag = async () => {
     if (!newTagName.trim()) {
-      Alert.alert(i18n.t('common.error'), i18n.t('tags.errorEmptyTagName'));
+      Alert.alert('Error', 'El nombre de la etiqueta no puede estar vacío');
       return;
     }
 
     if (newTagName.trim().length < 3) {
-      Alert.alert(i18n.t('common.error'), i18n.t('tags.errorTagNameLength'));
+      Alert.alert('Error', 'El nombre de la etiqueta debe tener al menos 3 caracteres');
       return;
     }
 
     // Verificar si ya existe una etiqueta con el mismo nombre
-    const tagExists = tags.some(tag => 
+    const tagExists = tags.some(tag =>
       tag.name.toLowerCase() === newTagName.trim().toLowerCase()
     );
 
     if (tagExists) {
-      Alert.alert(i18n.t('common.error'), i18n.t('tags.errorTagNameExists'));
+      Alert.alert('Error', 'Ya existe una etiqueta con el mismo nombre');
       return;
     }
 
@@ -62,10 +61,10 @@ export default function TagsScreen() {
       });
       setNewTagName('');
       setSelectedColor('#FF5252');
-      Alert.alert(i18n.t('common.success'), i18n.t('tags.successAddTag'));
+      Alert.alert('Éxito', 'Etiqueta agregada correctamente');
       loadTags();
     } catch (error) {
-      Alert.alert(i18n.t('common.error'), i18n.t('tags.errorAddTag'));
+      Alert.alert('Error', 'Error al agregar la etiqueta');
       console.error(error);
     } finally {
       setLoading(false);
@@ -80,25 +79,25 @@ export default function TagsScreen() {
 
   const handleUpdateTag = async () => {
     if (!editingTag) return;
-    
+
     if (!newTagName.trim()) {
-      Alert.alert(i18n.t('common.error'), i18n.t('tags.errorEmptyTagName'));
+      Alert.alert('Error', 'El nombre de la etiqueta no puede estar vacío');
       return;
     }
 
     if (newTagName.trim().length < 3) {
-      Alert.alert(i18n.t('common.error'), i18n.t('tags.errorTagNameLength'));
+      Alert.alert('Error', 'El nombre de la etiqueta debe tener al menos 3 caracteres');
       return;
     }
 
     // Verificar si ya existe otra etiqueta con el mismo nombre
-    const tagExists = tags.some(tag => 
-      tag.id !== editingTag.id && 
+    const tagExists = tags.some(tag =>
+      tag.id !== editingTag.id &&
       tag.name.toLowerCase() === newTagName.trim().toLowerCase()
     );
 
     if (tagExists) {
-      Alert.alert(i18n.t('common.error'), i18n.t('tags.errorTagNameExists'));
+      Alert.alert('Error', 'Ya existe una etiqueta con el mismo nombre');
       return;
     }
 
@@ -111,10 +110,10 @@ export default function TagsScreen() {
       setEditingTag(null);
       setNewTagName('');
       setSelectedColor('#FF5252');
-      Alert.alert(i18n.t('common.success'), i18n.t('tags.successUpdateTag'));
+      Alert.alert('Éxito', 'Etiqueta actualizada correctamente');
       loadTags();
     } catch (error) {
-      Alert.alert(i18n.t('common.error'), i18n.t('tags.errorUpdateTag'));
+      Alert.alert('Error', 'Error al actualizar la etiqueta');
       console.error(error);
     } finally {
       setLoading(false);
@@ -123,20 +122,20 @@ export default function TagsScreen() {
 
   const handleDeleteTag = (id: string) => {
     Alert.alert(
-      i18n.t('tags.confirmDelete'),
-      i18n.t('tags.confirmDeleteMessage'),
+      'Confirmar eliminación',
+      '¿Estás seguro de que deseas eliminar esta etiqueta?',
       [
-        { text: i18n.t('common.cancel'), style: 'cancel' },
-        { 
-          text: i18n.t('common.delete'), 
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
           style: 'destructive',
           onPress: async () => {
             try {
               await tagService.deleteTag(id);
-              Alert.alert(i18n.t('common.success'), i18n.t('tags.successDeleteTag'));
+              Alert.alert('Éxito', 'Etiqueta eliminada correctamente');
               loadTags();
             } catch (error) {
-              Alert.alert(i18n.t('common.error'), i18n.t('tags.errorDeleteTag'));
+              Alert.alert('Error', 'Error al eliminar la etiqueta');
               console.error(error);
             }
           }
@@ -153,7 +152,7 @@ export default function TagsScreen() {
 
   const handleSelectColor = async (color: string) => {
     setSelectedColor(color);
-    
+
     // Si estamos editando una etiqueta, actualizar su color inmediatamente
     if (editingTag) {
       try {
@@ -163,10 +162,10 @@ export default function TagsScreen() {
           color: color
         });
         setEditingTag(null);
-        Alert.alert(i18n.t('common.success'), i18n.t('tags.successUpdateTag'));
+        Alert.alert('Éxito', 'Etiqueta actualizada correctamente');
         loadTags();
       } catch (error) {
-        Alert.alert(i18n.t('common.error'), i18n.t('tags.errorUpdateTag'));
+        Alert.alert('Error', 'Error al actualizar la etiqueta');
         console.error(error);
       } finally {
         setLoading(false);
@@ -177,28 +176,28 @@ export default function TagsScreen() {
   const renderTagItem = ({ item }: { item: Tag }) => (
     <View style={[styles.tagItem, { backgroundColor: theme.surface }]}>
       <View style={styles.tagInfo}>
-        <View 
+        <View
           style={[
-            styles.tagColorIndicator, 
+            styles.tagColorIndicator,
             { backgroundColor: item.color || '#FF5252' }
-          ]} 
+          ]}
         />
         <Text style={[styles.tagName, { color: theme.text }]}>{item.name}</Text>
       </View>
       <View style={styles.tagActions}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.actionButton}
           onPress={() => handleChangeTagColor(item)}
         >
           <Ionicons name="color-palette" size={20} color={theme.primaryLight} />
         </TouchableOpacity>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.actionButton}
           onPress={() => handleEditTag(item)}
         >
           <Ionicons name="create" size={20} color={theme.primary} />
         </TouchableOpacity>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.actionButton}
           onPress={() => handleDeleteTag(item.id!)}
         >
@@ -218,31 +217,31 @@ export default function TagsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={[styles.header, { 
+      <View style={[styles.header, {
         backgroundColor: theme.surface,
         borderBottomColor: theme.border
       }]}>
-        <Text style={[styles.title, { color: theme.text }]}>{i18n.t('tags.title')}</Text>
+        <Text style={[styles.title, { color: theme.text }]}>{'Etiquetas'}</Text>
       </View>
 
-      <View style={[styles.formContainer, { 
+      <View style={[styles.formContainer, {
         backgroundColor: theme.surface,
         borderBottomColor: theme.border
       }]}>
         <View style={styles.inputContainer}>
           <TextInput
-            style={[styles.input, { 
+            style={[styles.input, {
               backgroundColor: theme.background,
               borderColor: theme.border,
               color: theme.text
             }]}
-            placeholder={i18n.t('tags.newTagPlaceholder')}
+            placeholder={'Nombre de la etiqueta'}
             placeholderTextColor={theme.textLight}
             value={newTagName}
             onChangeText={setNewTagName}
           />
-          <TouchableOpacity 
-            style={[styles.colorButton, { 
+          <TouchableOpacity
+            style={[styles.colorButton, {
               backgroundColor: theme.background,
               borderColor: theme.border
             }]}
@@ -256,7 +255,7 @@ export default function TagsScreen() {
           onPress={editingTag ? handleUpdateTag : handleAddTag}
         >
           <Text style={[styles.addButtonText, { color: theme.surface }]}>
-            {editingTag ? i18n.t('tags.editTag') : i18n.t('tags.addTag')}
+            {editingTag ? 'Editar Etiqueta' : 'Agregar Etiqueta'}
           </Text>
         </TouchableOpacity>
       </View>

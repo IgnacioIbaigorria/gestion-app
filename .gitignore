@@ -29,10 +29,10 @@ yarn-error.*
 *.pem
 
 # Local env files
-.env
 .env*.local
 .env.development
 .env.production
+.env
 
 # Firebase config files
 google-services.json

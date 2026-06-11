@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { salesService } from '../../../services/salesService';
 import SaleItem from '../../../components/SaleItem';
 import { Sale } from '../../../models/types';
-import i18n from '../../../translations';
 import { startOfDay, endOfDay, startOfWeek, endOfWeek, format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -38,7 +37,7 @@ export default function SalesScreen() {
       const filteredSales = filterSales(salesData);
       setSales(filteredSales);
     } catch (error) {
-      Alert.alert(i18n.t('common.error'), i18n.t('sales.errorSale'));
+      Alert.alert('Error', 'Error al cargar ventas');
       console.error(error);
     } finally {
       setLoading(false);
@@ -49,55 +48,75 @@ export default function SalesScreen() {
     return salesData.filter(sale => {
       // Ensure sale.date is a Date object
       const saleDate = sale.date instanceof Date ? sale.date : new Date(sale.date);
-      
+
       // Compare the timestamps for accurate date comparison
-      return saleDate.getTime() >= startDate.getTime() && 
-             saleDate.getTime() <= endDate.getTime();
+      return saleDate.getTime() >= startDate.getTime() &&
+        saleDate.getTime() <= endDate.getTime();
     });
   };
 
   const handleDeleteSale = (sale: Sale) => {
     Alert.alert(
-      i18n.t('common.confirm'),
-      i18n.t('sales.confirmDelete'),
+      'Confirmar',
+      '¿Estás seguro que deseas eliminar esta venta? Los productos vendidos serán restaurados.',
       [
         {
-          text: i18n.t('common.cancel'),
+          text: 'Cancelar',
           style: 'cancel'
         },
         {
-          text: i18n.t('common.delete'),
+          text: 'Confirmar',
           style: 'destructive',
           onPress: async () => {
             try {
               setLoading(true);
-              
+
               // First, restore product quantities
               if (sale.items && sale.items.length > 0) {
                 for (const item of sale.items) {
                   const product = await productService.getProductById(item.productId);
+
                   if (product) {
-                    const newQuantity = (product.quantity || 0) + item.quantity;
-                    await productService.updateProduct(item.productId, { quantity: newQuantity });
+                    const totalUnits = (product.units || 0) + item.units;
+                    const cajaSize = product.cantidad_por_caja || 1;
+                    console.log("Unidades actuales:", product.units);
+                    console.log("Unidades devueltas:", item.units)
+
+                    // Si la cantidad total de unidades alcanza al menos una caja
+                    if (item.units >= cajaSize) {
+                      const extraCajas = Math.floor(item.units / cajaSize);
+                      console.log("Cajas actuales:", product.quantity)
+                      console.log("Cajas devueltas:", extraCajas);
+
+                      await productService.updateProduct(item.productId, {
+                        quantity: product.quantity + extraCajas,
+                        units: totalUnits
+                      });
+                    } else {
+                      // Solo actualizás unidades si no alcanza una caja
+                      await productService.updateProduct(item.productId, {
+                        units: totalUnits
+                      });
+                    }
                   }
                 }
               }
-              
+
               // Delete the associated cash transaction
               if (sale.id) {
                 await cashService.deleteTransactionByReference(sale.id);
               }
-              
+
               // Delete the sale
               await salesService.deleteSale(sale.id!);
-              
+
               // Refresh the list
               loadSales();
-              
-              Alert.alert(i18n.t('common.success'), i18n.t('sales.deleteSuccess'));
+
+              Alert.alert('Éxito', 'La venta ha sido eliminada correctamente');
             } catch (error) {
               console.error('Error deleting sale:', error);
-              Alert.alert(i18n.t('common.error'), i18n.t('sales.deleteError'));
+              Alert.alert('Error', 'Error al eliminar la venta');
             } finally {
               setLoading(false);
             }
@@ -106,7 +125,7 @@ export default function SalesScreen() {
       ]
     );
   };
-  
+
 
   const handleFilterChange = (type: 'day' | 'week' | 'custom') => {
     setFilterType(type);
@@ -134,13 +153,13 @@ export default function SalesScreen() {
         if (selectedDate <= tempEndDate) {
           setTempStartDate(startOfDay(selectedDate));
         } else {
-          Alert.alert(i18n.t('common.error'), i18n.t('sales.filter.startDateError'));
+          Alert.alert('Error', 'La fecha de inicio debe ser anterior o igual a la fecha de fin');
         }
       } else {
         if (selectedDate >= tempStartDate) {
           setTempEndDate(endOfDay(selectedDate));
         } else {
-          Alert.alert(i18n.t('common.error'), i18n.t('sales.filter.endDateError'));
+          Alert.alert('Error', 'La fecha de fin debe ser posterior o igual a la fecha de inicio');
         }
       }
     }
@@ -167,7 +186,7 @@ export default function SalesScreen() {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={theme.primary} />
-        <Text style={[styles.loadingText, { color: theme.textLight }]}>{i18n.t('sales.loading')}</Text>
+        <Text style={[styles.loadingText, { color: theme.textLight }]}>{'Cargando ventas...'}</Text>
       </View>
     );
   }
@@ -177,47 +196,47 @@ export default function SalesScreen() {
       <View style={[styles.filterContainer, { backgroundColor: theme.surface }]}>
         <TouchableOpacity
           style={[
-            styles.filterButton, 
+            styles.filterButton,
             filterType === 'day' && [styles.filterButtonActive, { backgroundColor: theme.primary }]
           ]}
           onPress={() => handleFilterChange('day')}
         >
           <Text style={[
-            styles.filterText, 
+            styles.filterText,
             { color: theme.text },
             filterType === 'day' && [styles.filterTextActive, { color: theme.surface }]
           ]}>
-            {i18n.t('common.today')}
+            {'Hoy'}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[
-            styles.filterButton, 
+            styles.filterButton,
             filterType === 'week' && [styles.filterButtonActive, { backgroundColor: theme.primary }]
           ]}
           onPress={() => handleFilterChange('week')}
         >
           <Text style={[
-            styles.filterText, 
+            styles.filterText,
             { color: theme.text },
             filterType === 'week' && [styles.filterTextActive, { color: theme.surface }]
           ]}>
-            {i18n.t('common.week')}
+            {'Semana'}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[
-            styles.filterButton, 
+            styles.filterButton,
             filterType === 'custom' && [styles.filterButtonActive, { backgroundColor: theme.primary }]
           ]}
           onPress={() => handleFilterChange('custom')}
         >
           <Text style={[
-            styles.filterText, 
+            styles.filterText,
             { color: theme.text },
             filterType === 'custom' && [styles.filterTextActive, { color: theme.surface }]
           ]}>
-            {i18n.t('common.custom')}
+            {'Personalizado'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -232,7 +251,7 @@ export default function SalesScreen() {
         onRefresh={loadSales}
         ListEmptyComponent={
           <Text style={[styles.emptyText, { color: theme.textLight }]}>
-            {i18n.t('sales.empty')}
+            {'No hay ventas'}
           </Text>
         }
       />
@@ -250,10 +269,10 @@ export default function SalesScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
-            <Text style={[styles.modalTitle, { color: theme.text }]}>{i18n.t('sales.filter.selectPeriod')}</Text>
-            
+            <Text style={[styles.modalTitle, { color: theme.text }]}>{'Seleccionar periodo'}</Text>
+
             <TouchableOpacity
-              style={[styles.dateButton, { 
+              style={[styles.dateButton, {
                 backgroundColor: theme.background,
                 borderColor: theme.border
               }]}
@@ -263,12 +282,12 @@ export default function SalesScreen() {
               }}
             >
               <Text style={[styles.dateButtonText, { color: theme.text }]}>
-                {i18n.t('sales.filter.startDate')}: {format(tempStartDate, 'dd/MM/yyyy')}
+                {'Fecha de inicio'}: {format(tempStartDate, 'dd/MM/yyyy')}
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.dateButton, { 
+              style={[styles.dateButton, {
                 backgroundColor: theme.background,
                 borderColor: theme.border
               }]}
@@ -278,29 +297,29 @@ export default function SalesScreen() {
               }}
             >
               <Text style={[styles.dateButtonText, { color: theme.text }]}>
-                {i18n.t('sales.filter.endDate')}: {format(tempEndDate, 'dd/MM/yyyy')}
+                {'Fecha de fin'}: {format(tempEndDate, 'dd/MM/yyyy')}
               </Text>
             </TouchableOpacity>
 
             <View style={styles.modalButtons}>
               <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton, { 
+                style={[styles.modalButton, styles.cancelButton, {
                   backgroundColor: theme.error,
                   borderColor: theme.border
                 }]}
                 onPress={() => setShowCustomDateModal(false)}
               >
-                <Text style={[styles.modalButtonText, { color: theme.surface }]}>{i18n.t('common.cancel')}</Text>
+                <Text style={[styles.modalButtonText, { color: theme.surface }]}>{'Cancelar'}</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
-                style={[styles.modalButton, styles.confirmButton, { 
+                style={[styles.modalButton, styles.confirmButton, {
                   backgroundColor: theme.primary,
                   borderColor: theme.border
                 }]}
                 onPress={handleCustomDateConfirm}
               >
-                <Text style={[styles.modalButtonText, { color: theme.surface }]}>{i18n.t('common.apply')}</Text>
+                <Text style={[styles.modalButtonText, { color: theme.surface }]}>{'Aplicar'}</Text>
               </TouchableOpacity>
             </View>
           </View>

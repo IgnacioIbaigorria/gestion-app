@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  FlatList, 
-  TouchableOpacity, 
-  Alert, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  Alert,
   ActivityIndicator,
   Modal,
   TextInput
@@ -16,7 +16,6 @@ import { cashService } from '../../../services/cashService';
 import { CashTransaction } from '../../../models/types';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import i18n from '../../../translations';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '@/contexts/ThemeContext';
 import { salesService } from '@/services/salesService';
@@ -31,41 +30,40 @@ export default function CashRegisterScreen() {
   const [amount, setAmount] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [submitting, setSubmitting] = useState<boolean>(false);
-  // Add date filter states
-  const [filterDate, setFilterDate] = useState<Date>(new Date());
+  const [startDate, setStartDate] = useState<Date>(new Date());
+  const [endDate, setEndDate] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
+  const [datePickerMode, setDatePickerMode] = useState<'start' | 'end'>('start');
   const [isCustomDate, setIsCustomDate] = useState<boolean>(false);
 
   useEffect(() => {
     loadData();
-  }, [filterDate, isCustomDate]);
+  }, [startDate, endDate, isCustomDate]);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      
+
       let transactionsData;
       if (isCustomDate) {
-        // If custom date is selected, get transactions for that specific date
-        const startDate = startOfDay(filterDate);
-        const endDate = endOfDay(filterDate);
-        
-        // Use JavaScript Date objects directly instead of Timestamp
+        const start = startOfDay(startDate);
+        const end = endOfDay(endDate);
+
         transactionsData = await cashService.getTransactionsByDateRange(
-          startDate,
-          endDate
+          start,
+          end
         );
       } else {
         // Otherwise get today's transactions
         transactionsData = await cashService.getTodayTransactions();
       }
-      
+
       setTransactions(transactionsData);
-      
+
       const balance = await cashService.getCurrentBalance();
       setCurrentBalance(balance);
     } catch (error) {
-      Alert.alert(i18n.t('common.error'), i18n.t('cash.errorLoadData'));
+      Alert.alert('Error', 'No se pudo cargar el saldo');
       console.error(error);
     } finally {
       setLoading(false);
@@ -75,19 +73,11 @@ export default function CashRegisterScreen() {
   const handleSyncSales = async () => {
     try {
       setLoading(true);
-      const syncedCount = await salesService.syncSalesWithCashTransactions();
-      
-      // Reload data after sync
       await loadData();
-      
-      // Show success message
-      Alert.alert(
-        i18n.t('common.success'),
-        `${syncedCount} ${i18n.t('cash.salesSynced')}`
-      );
+
     } catch (error) {
       console.error('Error syncing sales:', error);
-      Alert.alert(i18n.t('common.error'), i18n.t('cash.syncError'));
+      Alert.alert('Error', 'No se pudo sincronizar las ventas');
     } finally {
       setLoading(false);
     }
@@ -97,20 +87,35 @@ export default function CashRegisterScreen() {
   const handleDateSelect = (event: any, selectedDate?: Date) => {
     setShowDatePicker(false);
     if (selectedDate) {
-      setFilterDate(selectedDate);
+      if (datePickerMode === 'start') {
+        if (selectedDate > endDate) {
+          setEndDate(selectedDate);
+        }
+        setStartDate(selectedDate);
+      } else {
+        if (selectedDate < startDate) {
+          setStartDate(selectedDate);
+        }
+        setEndDate(selectedDate);
+      }
       setIsCustomDate(true);
     }
   };
 
+  const openDatePicker = (mode: 'start' | 'end') => {
+    setDatePickerMode(mode);
+    setShowDatePicker(true);
+  };
+
   const formatDate = (timestamp: any) => {
-    if (!timestamp) return i18n.t('common.unknownDate');
-    
+    if (!timestamp) return 'Fecha desconocida';
+
     try {
       const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
       return format(date, 'dd/MM/yyyy HH:mm', { locale: es });
     } catch (error) {
       console.error('Error al formatear fecha:', error);
-      return i18n.t('common.invalidDate');
+      return 'Fecha invalida';
     }
   };
 
@@ -130,41 +135,52 @@ export default function CashRegisterScreen() {
   };
 
   const getTransactionTypeText = (type: string) => {
-    return i18n.t(`cash.${type}`);
+    switch (type) {
+      case 'expense':
+        return 'Gasto';
+      case 'withdrawal':
+        return 'Retiro';
+      case 'sale':
+        return 'Venta';
+      case 'deposit':
+        return 'Depósito';
+      default:
+        return 'Tipo: ' + type.charAt(0).toUpperCase() + type.slice(1);
+    }
   };
 
   const handleAddTransaction = async () => {
     if (!amount || parseFloat(amount) <= 0) {
-      Alert.alert(i18n.t('common.error'), i18n.t('cash.errorValidAmount'));
+      Alert.alert('Error', 'El monto debe ser mayor que 0');
       return;
     }
 
     if (!description.trim()) {
-      Alert.alert(i18n.t('common.error'), i18n.t('cash.errorDescription'));
+      Alert.alert('Error', 'La descripción no puede estar vacía');
       return;
     }
 
     try {
       setSubmitting(true);
-      
+
       const transaction: Omit<CashTransaction, 'id'> = {
         date: new Date(),
         type: transactionType,
         amount: parseFloat(amount),
         description: description.trim()
       };
-      
+
       await cashService.recordTransaction(transaction);
-      
+
       setAmount('');
       setDescription('');
       setModalVisible(false);
-      
+
       loadData();
-      
-      Alert.alert(i18n.t('common.success'), i18n.t('cash.successTransaction'));
+
+      Alert.alert('Éxito', 'Transacción registrada correctamente');
     } catch (error) {
-      Alert.alert(i18n.t('common.error'), i18n.t('cash.errorTransaction'));
+      Alert.alert('Error', 'Error al registrar la transacción');
       console.error(error);
     } finally {
       setSubmitting(false);
@@ -173,134 +189,164 @@ export default function CashRegisterScreen() {
 
   // Add this function to your CashRegisterScreen component
   const handleDeleteTransaction = (transaction: CashTransaction) => {
-  // Only allow deletion of expenses, deposits, and withdrawals (not sales)
-  if (transaction.type === 'sale') {
-    Alert.alert(
-      i18n.t('common.error'),
-      i18n.t('cash.cannotDeleteSale'),
-      [{ text: i18n.t('common.ok') }]
-    );
-    return;
-  }
+    // Only allow deletion of expenses, deposits, and withdrawals (not sales)
+    if (transaction.type === 'sale') {
+      Alert.alert(
+        'Error',
+        'No se puede eliminar una venta',
+        [{ text: 'Aceptar' }]
+      );
+      return;
+    }
 
-  Alert.alert(
-    i18n.t('common.confirm'),
-    i18n.t('cash.confirmDelete'),
-    [
-      {
-        text: i18n.t('common.cancel'),
-        style: 'cancel'
-      },
-      {
-        text: i18n.t('common.delete'),
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            setLoading(true);
-            await cashService.deleteTransaction(transaction.id!);
-            loadData();
-            Alert.alert(i18n.t('common.success'), i18n.t('cash.deleteSuccess'));
-          } catch (error) {
-            console.error('Error deleting transaction:', error);
-            Alert.alert(i18n.t('common.error'), i18n.t('cash.deleteError'));
-          } finally {
-            setLoading(false);
+    Alert.alert(
+      'Confirmar',
+      '¿Estás seguro de que deseas eliminar esta transacción?',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel'
+        },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setLoading(true);
+              await cashService.deleteTransaction(transaction.id!);
+              loadData();
+              Alert.alert('Éxito', 'Transacción eliminada correctamente');
+            } catch (error) {
+              console.error('Error deleting transaction:', error);
+              Alert.alert('Error', 'Error al eliminar la transacción');
+            } finally {
+              setLoading(false);
+            }
           }
         }
-      }
-    ]
-  );
-};
+      ]
+    );
+  };
 
-// Modify the renderTransactionItem function to include a delete button
-const renderTransactionItem = ({ item }: { item: CashTransaction }) => (
-  <View style={[styles.transactionItem, { borderBottomColor: theme.background }]}>
-    <View style={[styles.transactionIcon, { backgroundColor: theme.background }]}>
-      {getTransactionIcon(item.type)}
-    </View>
-    <View style={styles.transactionInfo}>
-      <Text style={[styles.transactionDescription, { color: theme.text }]}>{item.description}</Text>
-      <Text style={[styles.transactionDate, { color: theme.textLight }]}>{formatDate(item.date)}</Text>
-      <Text style={[styles.transactionType, { color: theme.textLight }]}>
-        {getTransactionTypeText(item.type)}
-      </Text>
-    </View>
-    <Text
-      style={[
-        styles.transactionAmount,
-        (item.type === 'expense' || item.type === 'withdrawal')
-          ? [styles.negativeAmount, { color: theme.error }]
-          : [styles.positiveAmount, { color: theme.success }]
-      ]}
-    >
-      {(item.type === 'expense' || item.type === 'withdrawal') ? '-' : '+'}
-      ${item.amount.toFixed(2)}
-    </Text>
-    
-    {/* Add delete button for non-sale transactions */}
-    {item.type !== 'sale' && (
+  const handleTransactionPress = (transaction: CashTransaction) => {
+    if (transaction.type === 'sale' && transaction.reference) {
+      router.push(`/ventas/${transaction.reference}`);
+    }
+  };
+
+  const renderTransactionItem = ({ item }: { item: CashTransaction }) => {
+    const isSale = item.type === 'sale';
+
+    return (
       <TouchableOpacity
-        style={styles.deleteButton}
-        onPress={() => handleDeleteTransaction(item)}
+        style={[styles.transactionItem, { borderBottomColor: theme.background }]}
+        onPress={() => handleTransactionPress(item)}
+        disabled={!isSale}
+        activeOpacity={isSale ? 0.7 : 1}
       >
-        <Ionicons name="trash-outline" size={20} color={theme.error} />
+        <View style={[styles.transactionIcon, { backgroundColor: theme.background }]}>
+          {getTransactionIcon(item.type)}
+        </View>
+        <View style={styles.transactionInfo}>
+          <Text style={[styles.transactionDescription, { color: theme.text }]}>{item.description}</Text>
+          <Text style={[styles.transactionDate, { color: theme.textLight }]}>{formatDate(item.date)}</Text>
+          <Text style={[styles.transactionType, { color: theme.textLight }]}>
+            {getTransactionTypeText(item.type)}
+          </Text>
+        </View>
+        <Text
+          style={[
+            styles.transactionAmount,
+            (item.type === 'expense' || item.type === 'withdrawal')
+              ? [styles.negativeAmount, { color: theme.error }]
+              : [styles.positiveAmount, { color: theme.success }]
+          ]}
+        >
+          {(item.type === 'expense' || item.type === 'withdrawal') ? '-' : '+'}
+          ${item.amount.toLocaleString('es-ES')}
+        </Text>
+
+        {item.type !== 'sale' && (
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => handleDeleteTransaction(item)}
+          >
+            <Ionicons name="trash-outline" size={20} color={theme.error} />
+          </TouchableOpacity>
+        )}
+
+        {/* Add chevron for sales to indicate navigability */}
+        {isSale && (
+          <View style={styles.chevron}>
+            <Ionicons name="chevron-forward" size={16} color={theme.textLight} />
+          </View>
+        )}
       </TouchableOpacity>
-    )}
-  </View>
-);
+    );
+  };
 
 
   const renderDateFilter = () => {
     return (
       <View style={styles.dateFilterContainer}>
-        <TouchableOpacity
-          style={[
-            styles.dateFilterButton,
-            { borderColor: theme.primary },
-            !isCustomDate && [styles.activeDateButton, { backgroundColor: theme.primary }]
-          ]}
-          onPress={() => {
-            setIsCustomDate(false);
-            setFilterDate(new Date());
-          }}
-        >
-          <Text
+        <View style={styles.filterTabs}>
+          <TouchableOpacity
             style={[
-              styles.dateFilterText,
-              { color: theme.primary },
-              !isCustomDate && [styles.activeDateText, { color: theme.surface }]
+              styles.filterTab,
+              !isCustomDate && { backgroundColor: theme.primary, borderColor: theme.primary }
             ]}
+            onPress={() => {
+              setIsCustomDate(false);
+              const today = new Date();
+              setStartDate(today);
+              setEndDate(today);
+            }}
           >
-            {i18n.t('common.today')}
-          </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[
-            styles.dateFilterButton,
-            { borderColor: theme.primary },
-            isCustomDate && [styles.activeDateButton, { backgroundColor: theme.primary }]
-          ]}
-          onPress={() => setShowDatePicker(true)}
-        >
-          <Ionicons 
-            name="calendar-outline" 
-            size={16} 
-            color={isCustomDate ? theme.surface : theme.primary} 
-          />
-          <Text
+            <Text style={[
+              styles.filterTabText,
+              { color: !isCustomDate ? theme.surface : theme.text }
+            ]}>Hoy</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={[
-              styles.dateFilterText,
-              { color: theme.primary },
-              isCustomDate && [styles.activeDateText, { color: theme.surface }]
+              styles.filterTab,
+              isCustomDate && { backgroundColor: theme.primary, borderColor: theme.primary }
             ]}
+            onPress={() => setIsCustomDate(true)}
           >
-            {isCustomDate 
-              ? format(filterDate, 'dd/MM/yyyy', { locale: es })
-              : i18n.t('common.selectDate')
-            }
-          </Text>
-        </TouchableOpacity>
+            <Text style={[
+              styles.filterTabText,
+              { color: isCustomDate ? theme.surface : theme.text }
+            ]}>Rango</Text>
+          </TouchableOpacity>
+        </View>
+
+        {isCustomDate && (
+          <View style={styles.rangeContainer}>
+            <TouchableOpacity
+              style={[styles.dateButton, { borderColor: theme.primary, backgroundColor: theme.surface }]}
+              onPress={() => openDatePicker('start')}
+            >
+              <Ionicons name="calendar-outline" size={16} color={theme.primary} />
+              <Text style={[styles.dateButtonText, { color: theme.text }]}>
+                {format(startDate, 'dd/MM/yyyy')}
+              </Text>
+            </TouchableOpacity>
+
+            <Ionicons name="arrow-forward" size={16} color={theme.textLight} />
+
+            <TouchableOpacity
+              style={[styles.dateButton, { borderColor: theme.primary, backgroundColor: theme.surface }]}
+              onPress={() => openDatePicker('end')}
+            >
+              <Ionicons name="calendar-outline" size={16} color={theme.primary} />
+              <Text style={[styles.dateButtonText, { color: theme.text }]}>
+                {format(endDate, 'dd/MM/yyyy')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     );
   };
@@ -309,7 +355,7 @@ const renderTransactionItem = ({ item }: { item: CashTransaction }) => (
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={theme.primary} />
-        <Text style={[styles.loadingText, { color: theme.textLight }]}>{i18n.t('cash.loading')}</Text>
+        <Text style={[styles.loadingText, { color: theme.textLight }]}>{'Cargando'}</Text>
       </View>
     );
   }
@@ -317,13 +363,13 @@ const renderTransactionItem = ({ item }: { item: CashTransaction }) => (
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={[styles.balanceCard, { backgroundColor: theme.surface }]}>
-        <Text style={[styles.balanceLabel, { color: theme.textLight }]}>{i18n.t('cash.currentBalance')}</Text>
-        <Text style={[styles.balanceAmount, { color: theme.text }]}>${currentBalance.toFixed(2)}</Text>
+        <Text style={[styles.balanceLabel, { color: theme.textLight }]}>Saldo actual</Text>
+        <Text style={[styles.balanceAmount, { color: theme.text }]}>${currentBalance.toLocaleString('es-ES')}</Text>
         <TouchableOpacity
           style={styles.reportButton}
           onPress={() => router.push('/caja/reporte')}
         >
-          <Text style={[styles.reportButtonText, { color: theme.primary }]}>{i18n.t('cash.reports')}</Text>
+          <Text style={[styles.reportButtonText, { color: theme.primary }]}>Reportes</Text>
           <Ionicons name="chevron-forward" size={16} color={theme.primary} />
         </TouchableOpacity>
       </View>
@@ -331,9 +377,9 @@ const renderTransactionItem = ({ item }: { item: CashTransaction }) => (
       <View style={[styles.transactionsContainer, { backgroundColor: theme.surface }]}>
         <View style={styles.transactionsHeader}>
           <Text style={[styles.transactionsTitle, { color: theme.text }]}>
-            {isCustomDate 
-              ? i18n.t('cash.dateTransactions') 
-              : i18n.t('cash.todayTransactions')
+            {isCustomDate
+              ? 'Transacciones del rango'
+              : 'Transacciones de hoy'
             }
           </Text>
           <View style={styles.headerButtons}>
@@ -353,10 +399,10 @@ const renderTransactionItem = ({ item }: { item: CashTransaction }) => (
         </View>
 
         {renderDateFilter()}
-        
+
         {showDatePicker && (
           <DateTimePicker
-            value={filterDate}
+            value={datePickerMode === 'start' ? startDate : endDate}
             mode="date"
             onChange={handleDateSelect}
           />
@@ -368,49 +414,26 @@ const renderTransactionItem = ({ item }: { item: CashTransaction }) => (
           renderItem={renderTransactionItem}
           ListEmptyComponent={
             <Text style={[styles.emptyText, { color: theme.textLight }]}>
-              {isCustomDate 
-                ? i18n.t('cash.emptyDateTransactions') 
-                : i18n.t('cash.emptyTransactions')
+              {isCustomDate
+                ? 'No hay transacciones registradas para este rango'
+                : 'No hay transacciones registradas hoy'
               }
             </Text>
           }
         />
       </View>
 
-      <View style={styles.actionButtonsContainer}>
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: theme.primary }]}
-          onPress={() => {
-            setTransactionType('deposit');
-            setModalVisible(true);
-          }}
-        >
-          <Ionicons name="arrow-down" size={24} color={theme.surface} />
-          <Text style={[styles.actionButtonText, { color: theme.surface }]}>{i18n.t('cash.deposit')}</Text>
-        </TouchableOpacity>
+      {/* Botón flotante para agregar gasto */}
+      <TouchableOpacity
+        style={[styles.fab, { backgroundColor: theme.error }]}
+        onPress={() => {
+          setTransactionType('expense');
+          setModalVisible(true);
+        }}
+      >
+        <Ionicons name="wallet" size={28} color={theme.surface} />
+      </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: theme.warning }]}
-          onPress={() => {
-            setTransactionType('withdrawal');
-            setModalVisible(true);
-          }}
-        >
-          <Ionicons name="arrow-up" size={24} color={theme.surface} />
-          <Text style={[styles.actionButtonText, { color: theme.surface }]}>{i18n.t('cash.withdrawal')}</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: theme.error }]}
-          onPress={() => {
-            setTransactionType('expense');
-            setModalVisible(true);
-          }}
-        >
-          <Ionicons name="wallet" size={24} color={theme.surface} />
-          <Text style={[styles.actionButtonText, { color: theme.surface }]}>{i18n.t('cash.expense')}</Text>
-        </TouchableOpacity>
-      </View>
 
       <Modal
         animationType="slide"
@@ -422,8 +445,8 @@ const renderTransactionItem = ({ item }: { item: CashTransaction }) => (
           <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: theme.text }]}>
-                {transactionType === 'deposit' ? i18n.t('cash.newDeposit') : 
-                 transactionType === 'withdrawal' ? i18n.t('cash.newWithdrawal') : i18n.t('cash.newExpense')}
+                {transactionType === 'deposit' ? 'Nuevo deposito' :
+                  transactionType === 'withdrawal' ? 'Nuevo retiro' : 'Nuevo gasto'}
               </Text>
               <TouchableOpacity
                 onPress={() => setModalVisible(false)}
@@ -434,32 +457,32 @@ const renderTransactionItem = ({ item }: { item: CashTransaction }) => (
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: theme.text }]}>{i18n.t('cash.amount')}</Text>
+              <Text style={[styles.label, { color: theme.text }]}>{'Monto'}</Text>
               <TextInput
-                style={[styles.input, { 
-                  backgroundColor: theme.background, 
+                style={[styles.input, {
+                  backgroundColor: theme.background,
                   borderColor: theme.primaryLight,
                   color: theme.text
                 }]}
                 value={amount}
                 onChangeText={setAmount}
                 keyboardType="numeric"
-                placeholder="0.00"
+                placeholder="0"
                 placeholderTextColor={theme.textLight}
               />
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: theme.text }]}>{i18n.t('cash.description')}</Text>
+              <Text style={[styles.label, { color: theme.text }]}>{'Descripcion'}</Text>
               <TextInput
-                style={[styles.input, { 
-                  backgroundColor: theme.background, 
+                style={[styles.input, {
+                  backgroundColor: theme.background,
                   borderColor: theme.primaryLight,
                   color: theme.text
                 }]}
                 value={description}
                 onChangeText={setDescription}
-                placeholder={i18n.t('cash.descriptionPlaceholder')}
+                placeholder={'Descripcion'}
                 placeholderTextColor={theme.textLight}
               />
             </View>
@@ -476,7 +499,7 @@ const renderTransactionItem = ({ item }: { item: CashTransaction }) => (
               {submitting ? (
                 <ActivityIndicator size="small" color={theme.surface} />
               ) : (
-                <Text style={[styles.submitButtonText, { color: theme.surface }]}>{i18n.t('cash.save')}</Text>
+                <Text style={[styles.submitButtonText, { color: theme.surface }]}>{'Guardar'}</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -679,32 +702,66 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   dateFilterContainer: {
-    flexDirection: 'row',
     marginBottom: 16,
-    justifyContent: 'space-between',
   },
-  dateFilterButton: {
+  filterTabs: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 8,
+    padding: 4,
+    marginBottom: 12,
+  },
+  filterTab: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 6,
+  },
+  filterTabText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  rangeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  dateButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 8,
     borderWidth: 1,
-    flex: 0.48,
   },
-  activeDateButton: {
-    // backgroundColor applied dynamically
-  },
-  dateFilterText: {
+  dateButtonText: {
+    marginLeft: 6,
+    fontSize: 14,
     fontWeight: '500',
-    marginLeft: 4,
-  },
-  activeDateText: {
-    // color applied dynamically
   },
   deleteButton: {
     padding: 8,
     marginLeft: 8,
+  },
+  chevron: {
+    marginLeft: 8,
+  },
+  fab: {
+    position: 'absolute',
+    right: 24,
+    bottom: 24,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
 });

@@ -4,7 +4,6 @@ import { Stack, useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { quoteService } from '../../../services/quoteService';
 import { Quote, QuoteStatus } from '../../../models/types';
-import i18n from '../../../translations';
 import { format } from 'date-fns';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -29,7 +28,7 @@ export default function QuoteDetailScreen() {
       setQuote(quoteData);
     } catch (error) {
       console.error('Error loading quote:', error);
-      Alert.alert(i18n.t('common.error'), i18n.t('quotes.errorLoading'));
+      Alert.alert('Error', 'Error al cargar el presupuesto');
     } finally {
       setLoading(false);
     }
@@ -37,27 +36,27 @@ export default function QuoteDetailScreen() {
 
   const handleStatusChange = async (newStatus: QuoteStatus) => {
     if (!quote) return;
-    
+
     try {
       setLoading(true);
       await quoteService.updateQuote(quote.id!, { status: newStatus });
-      
+
       // If converting to sale, use the dedicated method
       if (newStatus === 'converted') {
         await quoteService.convertQuoteToSale(quote.id!);
         Alert.alert(
-          i18n.t('common.success'),
-          i18n.t('quotes.convertSuccess'),
+          'Éxito',
+          'Presupuesto convertido a venta',
           [{ text: 'OK', onPress: () => router.back() }]
         );
       } else {
         // Otherwise just update the local state
         setQuote({ ...quote, status: newStatus });
-        Alert.alert(i18n.t('common.success'), i18n.t('quotes.statusUpdateSuccess'));
+        Alert.alert('Éxito', 'Estado del presupuesto actualizado');
       }
     } catch (error) {
       console.error('Error updating quote status:', error);
-      Alert.alert(i18n.t('common.error'), i18n.t('quotes.statusUpdateError'));
+      Alert.alert('Error', 'Error al actualizar el estado del presupuesto');
     } finally {
       setLoading(false);
     }
@@ -65,10 +64,10 @@ export default function QuoteDetailScreen() {
 
   const generateHtml = () => {
     if (!quote) return '';
-    
+
     const quoteDate = quote.date ? quote.date : new Date(quote.date);
-    const validUntil = quote.valid_until? quote.valid_until : new Date();
-    
+    const validUntil = quote.valid_until ? quote.valid_until : new Date();
+
     const itemsHtml = quote.items.map(item => `
       <tr>
         <td>${item.name}</td>
@@ -77,7 +76,7 @@ export default function QuoteDetailScreen() {
         <td style="text-align: right;">$${item.subtotal.toFixed(2)}</td>
       </tr>
     `).join('');
-    
+
     return `
       <!DOCTYPE html>
       <html>
@@ -210,7 +209,7 @@ export default function QuoteDetailScreen() {
   const handleShareQuote = async () => {
     try {
       if (!quote) return;
-      
+
       const message = `Presupuesto para ${quote.customer_name} por un total de $${quote.total.toFixed(2)}`;
       await Share.share({
         message,
@@ -218,7 +217,7 @@ export default function QuoteDetailScreen() {
       });
     } catch (error) {
       console.error('Error sharing quote:', error);
-      Alert.alert(i18n.t('common.error'), i18n.t('quotes.shareError'));
+      Alert.alert('Error', 'Error al compartir el presupuesto');
     }
   };
 
@@ -227,14 +226,14 @@ export default function QuoteDetailScreen() {
       setLoading(true);
       const html = generateHtml();
       const { uri } = await Print.printToFileAsync({ html });
-      
+
       await Sharing.shareAsync(uri, {
         UTI: '.pdf',
         mimeType: 'application/pdf',
       });
     } catch (error) {
       console.error('Error exporting PDF:', error);
-      Alert.alert(i18n.t('common.error'), i18n.t('quotes.exportError'));
+      Alert.alert('Error', 'Error al exportar el presupuesto');
     } finally {
       setLoading(false);
     }
@@ -249,13 +248,13 @@ export default function QuoteDetailScreen() {
       default: return theme.textLight;
     }
   };
-  
+
   const getStatusText = (status: QuoteStatus) => {
     switch (status) {
-      case 'pending': return i18n.t('quotes.status.pending');
-      case 'approved': return i18n.t('quotes.status.approved');
-      case 'rejected': return i18n.t('quotes.status.rejected');
-      case 'converted': return i18n.t('quotes.status.converted');
+      case 'pending': return 'Pendiente';
+      case 'approved': return 'Aprobado';
+      case 'rejected': return 'Rechazado';
+      case 'converted': return 'Convertido';
       default: return status;
     }
   };
@@ -264,7 +263,7 @@ export default function QuoteDetailScreen() {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={theme.primary} />
-        <Text style={[styles.loadingText, { color: theme.textLight }]}>{i18n.t('common.loading')}</Text>
+        <Text style={[styles.loadingText, { color: theme.textLight }]}>{'Cargando'}</Text>
       </View>
     );
   }
@@ -272,12 +271,12 @@ export default function QuoteDetailScreen() {
   if (!quote) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <Text style={[styles.errorText, { color: theme.error }]}>{i18n.t('quotes.notFound')}</Text>
+        <Text style={[styles.errorText, { color: theme.error }]}>{'Presupuesto no encontrado'}</Text>
         <TouchableOpacity
           style={[styles.backButton, { backgroundColor: theme.primary }]}
           onPress={() => router.back()}
         >
-          <Text style={[styles.backButtonText, { color: theme.surface }]}>{i18n.t('common.back')}</Text>
+          <Text style={[styles.backButtonText, { color: theme.surface }]}>{'Volver'}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -285,16 +284,6 @@ export default function QuoteDetailScreen() {
 
   return (
     <>
-      <Stack.Screen 
-        options={{ 
-          title: i18n.t('quotes.detail'),
-          headerStyle: {
-            backgroundColor: theme.primary,
-          },
-          headerTintColor: theme.surface,
-        }} 
-      />
-      
       <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <View style={styles.cardHeader}>
@@ -303,26 +292,26 @@ export default function QuoteDetailScreen() {
               <Text style={styles.statusText}>{getStatusText(quote.status)}</Text>
             </View>
           </View>
-          
+
           <View style={styles.infoRow}>
-            <Text style={[styles.infoLabel, { color: theme.textLight }]}>{i18n.t('quotes.date')}:</Text>
+            <Text style={[styles.infoLabel, { color: theme.textLight }]}>{'Fecha'}</Text>
             <Text style={[styles.infoValue, { color: theme.text }]}>
               {format(quote.date instanceof Date ? quote.date : new Date(quote.date), 'dd/MM/yyyy')}
             </Text>
           </View>
-          
+
           {quote.valid_until && (
             <View style={styles.infoRow}>
-              <Text style={[styles.infoLabel, { color: theme.textLight }]}>{i18n.t('quotes.validUntil')}:</Text>
+              <Text style={[styles.infoLabel, { color: theme.textLight }]}>{'Válido hasta'}</Text>
               <Text style={[styles.infoValue, { color: theme.text }]}>
                 {format(quote.valid_until instanceof Date ? quote.valid_until : new Date(quote.valid_until), 'dd/MM/yyyy')}
               </Text>
             </View>
           )}
         </View>
-        
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>{i18n.t('quotes.items')}</Text>
-        
+
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>{'Items'}</Text>
+
         {quote.items.map((item, index) => (
           <View key={index} style={[styles.itemCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <Text style={[styles.itemName, { color: theme.text }]}>{item.name}</Text>
@@ -336,77 +325,77 @@ export default function QuoteDetailScreen() {
             </View>
           </View>
         ))}
-        
+
         <View style={[styles.totalCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.totalLabel, { color: theme.textLight }]}>{i18n.t('common.total')}:</Text>
+          <Text style={[styles.totalLabel, { color: theme.textLight }]}>{'Total'}</Text>
           <Text style={[styles.totalValue, { color: theme.primary }]}>${quote.total.toFixed(2)}</Text>
         </View>
-        
+
         {quote.notes && (
           <>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>{i18n.t('quotes.notes')}</Text>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>{'Notas'}</Text>
             <View style={[styles.notesCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
               <Text style={[styles.notesText, { color: theme.text }]}>{quote.notes}</Text>
             </View>
           </>
         )}
-        
+
         <View style={styles.actionsContainer}>
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: theme.primary }]}
             onPress={handleExportPdf}
           >
             <Ionicons name="document-text-outline" size={20} color={theme.surface} />
-            <Text style={[styles.actionButtonText, { color: theme.surface }]}>{i18n.t('quotes.exportPdf')}</Text>
+            <Text style={[styles.actionButtonText, { color: theme.surface }]}>{'Exportar PDF'}</Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: theme.secondary }]}
             onPress={handleShareQuote}
           >
             <Ionicons name="share-outline" size={20} color={theme.surface} />
-            <Text style={[styles.actionButtonText, { color: theme.surface }]}>{i18n.t('common.share')}</Text>
+            <Text style={[styles.actionButtonText, { color: theme.surface }]}>{'Compartir'}</Text>
           </TouchableOpacity>
         </View>
-        
+
         {quote.status !== 'converted' && (
           <View style={styles.statusActionsContainer}>
-            <Text style={[styles.statusActionsTitle, { color: theme.text }]}>{i18n.t('quotes.changeStatus')}:</Text>
-            
+            <Text style={[styles.statusActionsTitle, { color: theme.text }]}>{'Cambiar estado'}</Text>
+
             <View style={styles.statusButtons}>
               {quote.status !== 'pending' && (
                 <TouchableOpacity
                   style={[styles.statusButton, { backgroundColor: theme.warning }]}
                   onPress={() => handleStatusChange('pending')}
                 >
-                  <Text style={styles.statusButtonText}>{i18n.t('quotes.status.pending')}</Text>
+                  <Text style={styles.statusButtonText}>{'Pendiente'}</Text>
                 </TouchableOpacity>
               )}
-              
+
               {quote.status !== 'approved' && (
                 <TouchableOpacity
                   style={[styles.statusButton, { backgroundColor: theme.success }]}
                   onPress={() => handleStatusChange('approved')}
                 >
-                  <Text style={styles.statusButtonText}>{i18n.t('quotes.status.approved')}</Text>
+                  <Text style={styles.statusButtonText}>{'Aprobado'}</Text>
                 </TouchableOpacity>
               )}
-              
+
               {quote.status !== 'rejected' && (
                 <TouchableOpacity
                   style={[styles.statusButton, { backgroundColor: theme.error }]}
                   onPress={() => handleStatusChange('rejected')}
                 >
-                  <Text style={styles.statusButtonText}>{i18n.t('quotes.status.rejected')}</Text>
+                  <Text style={styles.statusButtonText}>{'Rechazado'}</Text>
                 </TouchableOpacity>
               )}
-              
+
               {quote.status === 'pending' || quote.status === 'approved' || quote.status === 'rejected' && (
                 <TouchableOpacity
                   style={[styles.statusButton, { backgroundColor: theme.primary }]}
                   onPress={() => handleStatusChange('converted')}
                 >
-                  <Text style={styles.statusButtonText}>{i18n.t('quotes.convertToSale')}</Text>
+                  <Text style={styles.statusButtonText}>{'Convertir a venta'}</Text>
                 </TouchableOpacity>
               )}
             </View>

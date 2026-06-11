@@ -1,60 +1,74 @@
 const colors = {
-  primary: '#4CAF50',       // Verde medio
-  secondary: '#66BB6A',     // Verde más claro
-  primaryLight: '#81C784',  // Verde claro
-  primaryDark: '#388E3C',   // Verde oscuro
-  accent: '#8BC34A',        // Verde lima claro
-  background: '#F1F8E9',    // Fondo verde muy claro
-  surface: '#FFFFFF',       // Superficie blanca
-  text: '#212121',          // Texto oscuro
-  textLight: '#757575',     // Texto claro
-  error: '#D32F2F',         // Rojo error
-  success: '#388E3C',       // Verde éxito
-  warning: '#FF9800',       // Ámbar advertencia
-  warningLight: '#FFF3E0',
-  info: '#1976D2',          // Azul información
-  successLight: '#C8E6C9',  // Verde claro para éxito
-  border: '#E0E0E0',         // Borde gris claro
+  primary: '#4F46E5',        // Indigo 600 - Modern, vibrant primary
+  secondary: '#4338CA',      // Indigo 700
+  primaryLight: '#818CF8',   // Indigo 400
+  primaryDark: '#312E81',    // Indigo 900
+  accent: '#06B6D4',         // Cyan 500
+  background: '#F8FAFC',     // Slate 50
+  surface: '#FFFFFF',        // White
+  surfaceHighlight: '#F1F5F9', // Slate 100
+  text: '#0F172A',           // Slate 900
+  textSecondary: '#475569',  // Slate 600
+  white: '#FFFFFF',
+  textLight: '#94A3B8',      // Slate 400
+  error: '#EF4444',          // Red 500
+  success: '#10B981',        // Emerald 500
+  warning: '#F59E0B',        // Amber 500
+  info: '#3B82F6',           // Blue 500
+  border: '#E2E8F0',         // Slate 200
+  card: '#FFFFFF',
 };
-// Definición de temas claro y oscuro
+
 const lightTheme = {
-  primary: '#4CAF50',       // Verde medio
-  secondary: '#66BB6A',     // Verde más claro
-  primaryLight: '#81C784',  // Verde claro
-  primaryDark: '#388E3C',   // Verde oscuro
-  accent: '#8BC34A',        // Verde lima claro
-  background: '#F1F8E9',    // Fondo verde muy claro
-  surface: '#FFFFFF',       // Superficie blanca
-  text: '#212121',          // Texto oscuro
-  textLight: '#757575',     // Texto claro
-  error: '#D32F2F',         // Rojo error
-  success: '#388E3C',       // Verde éxito
-  warning: '#FF9800',       // Ámbar advertencia
-  warningLight: '#FFF3E0',
-  info: '#1976D2',          // Azul información
-  successLight: '#C8E6C9',  // Verde claro para éxito
-  border: '#E0E0E0',        // Borde gris claro
+  primary: '#4F46E5',
+  secondary: '#4338CA',
+  primaryLight: '#818CF8',
+  primaryDark: '#312E81',
+  accent: '#06B6D4',
+  background: '#F8FAFC',
+  surface: '#FFFFFF',
+  surfaceHighlight: '#F1F5F9',
+  text: '#0F172A',
+  textSecondary: '#475569',
+  white: '#FFFFFF',
+  textLight: '#94A3B8',
+  error: '#EF4444',
+  success: '#10B981',
+  warning: '#F59E0B',
+  info: '#3B82F6',
+  border: '#E2E8F0',
+  card: '#FFFFFF',
+  highlight: '#818CF8',
+  shadow: '#64748B', // Slate 500
 };
 
 const darkTheme = {
-  primary: '#66BB6A',       // Verde más claro para contraste
-  secondary: '#4CAF50',     // Verde medio
-  primaryLight: '#388E3C',  // Verde oscuro (invertido para tema oscuro)
-  primaryDark: '#81C784',   // Verde claro (invertido para tema oscuro)
-  accent: '#8BC34A',        // Verde lima claro
-  background: '#121212',    // Fondo oscuro estándar
-  surface: '#1E1E1E',       // Superficie oscura
-  text: '#FFFFFF',          // Texto blanco
-  textLight: '#B0B0B0',     // Texto gris claro
-  error: '#EF5350',         // Rojo error más claro
-  success: '#66BB6A',       // Verde éxito más claro
-  warning: '#FFA726',       // Ámbar advertencia más claro
-  warningLight: '#3E2723',  // Versión oscura del warningLight
-  info: '#42A5F5',          // Azul información más claro
-  successLight: '#1B5E20',  // Verde oscuro para éxito
-  border: '#333333',        // Borde gris oscuro
+  primary: '#6366F1',        // Indigo 500 - Slightly lighter for dark mode
+  secondary: '#4F46E5',      // Indigo 600
+  primaryLight: '#312E81',   // Indigo 900
+  primaryDark: '#1E1B4B',    // Indigo 950
+  accent: '#22D3EE',         // Cyan 400
+  background: '#0F172A',     // Slate 900
+  surface: '#1E293B',        // Slate 800
+  surfaceHighlight: '#334155', // Slate 700
+  text: '#F8FAFC',           // Slate 50
+  textSecondary: '#CBD5E1',  // Slate 300
+  white: '#FFFFFF',
+  textLight: '#94A3B8',      // Slate 400
+  error: '#F87171',          // Red 400
+  success: '#34D399',        // Emerald 400
+  warning: '#FBBF24',        // Amber 400
+  info: '#60A5FA',           // Blue 400
+  border: '#334155',         // Slate 700
+  card: '#1E293B',           // Slate 800
+  highlight: '#6366F1',
+  shadow: '#000000',
 };
 
-// Exportamos ambos temas y un tema por defecto (el claro)
-export { colors, lightTheme, darkTheme };
+const Colors = {
+  light: lightTheme,
+  dark: darkTheme,
+};
+
+export { colors, lightTheme, darkTheme, Colors };
 export default lightTheme;

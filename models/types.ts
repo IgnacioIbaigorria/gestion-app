@@ -6,11 +6,15 @@ export interface Product {
   description?: string;
   cost_price: number;
   selling_price: number;
-  quantity: number;
+  quantity: number; // Cantidad de cajas
+  units: number; // Nuevo campo para unidades individuales
   profit_margin: number;
+  unit_price: number;
   low_stock_threshold?: number;
   category_id?: string | null;
   tags?: string[]; // This is defined as string[] (array of tag IDs)
+  cantidad_por_caja: number;
+  is_deleted?: boolean;
 }
 
 export interface Tag {
@@ -33,6 +37,8 @@ export interface SaleItem {
   quantity: number;
   unitPrice: number;
   subtotal: number;
+  units: number;
+  discount: number;
 }
 
 export interface Sale {
@@ -42,6 +48,7 @@ export interface Sale {
   total_amount: number;
   payment_method: string;
   notes?: string;
+  discount: number;
 }
 
 export interface CashTransaction {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
   Touchable,
   Modal
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { salesService } from '../../../services/salesService';
@@ -21,7 +22,6 @@ import { cashService } from '../../../services/cashService';
 import { receiptService } from '../../../services/receiptService';
 import { Product, Sale, SaleItem } from '../../../models/types';
 import ProductSearchInput from '../../../components/ProductSearchInput';
-import i18n from '../../../translations';
 import { useTheme } from '../../../contexts/ThemeContext';
 
 export default function NewSaleScreen() {
@@ -34,77 +34,72 @@ export default function NewSaleScreen() {
   const { theme } = useTheme();
   const [newSaleData, setNewSaleData] = useState<Sale | null>(null);
   const [showReceiptModal, setShowReceiptModal] = useState<boolean>(false);
-  const handleSelectProduct = (product: Product) => {
-    setSelectedProduct(product);
-    setQuantity('1');
-  };
+  const [boxes, setBoxes] = useState<string>('1');
+  const [inputUnits, setInputUnits] = useState<string>('1');
+  const [discount, setDiscount] = useState<string>('0');
+  const [inputDiscount, setInputDiscount] = useState('0');
+  const [subtotal, setSubtotal] = useState(0);
 
-  const handleAddToCart = () => {
-    if (!selectedProduct) {
-      Alert.alert(i18n.t('common.error'), i18n.t('sales.errorSelectProduct'));
-      return;
-    }
+  useEffect(() => {
+    const units = parseFloat(inputUnits) || 0;
+    const discount = parseFloat(inputDiscount) || 0;
 
-    const qty = parseInt(quantity, 10);
-    if (isNaN(qty) || qty <= 0) {
-      Alert.alert(i18n.t('common.error'), i18n.t('sales.errorValidQuantity'));
-      return;
-    }
-
-    if (qty > (selectedProduct.quantity || 0)) {
-      Alert.alert(i18n.t('common.error'), i18n.t('sales.errorInsufficientStock'));
-      return;
-    }
-
-    const existingItemIndex = cartItems.findIndex(
-      item => item.productId === selectedProduct.id
-    );
-
-    if (existingItemIndex >= 0) {
-      // Actualizar cantidad si el producto ya está en el carrito
-      const updatedItems = [...cartItems];
-      const newQuantity = updatedItems[existingItemIndex].quantity + qty;
-      
-      if (newQuantity > (selectedProduct.quantity || 0)) {
-        Alert.alert('Error', 'No hay suficiente stock disponible');
-        return;
-      }
-      
-      updatedItems[existingItemIndex].quantity = newQuantity;
-      updatedItems[existingItemIndex].subtotal = 
-        newQuantity * updatedItems[existingItemIndex].unitPrice;
-      
-      setCartItems(updatedItems);
+    if (selectedProduct && selectedProduct.unit_price) {
+      const priceWithoutDiscount = units * selectedProduct.unit_price;
+      const discountAmount = priceWithoutDiscount * (discount / 100);
+      const finalSubtotal = priceWithoutDiscount - discountAmount;
+      setSubtotal(finalSubtotal);
     } else {
-      // Agregar nuevo producto al carrito
-      const newItem: SaleItem = {
-        productId: selectedProduct.id!,
-        productName: selectedProduct.name,
-        quantity: qty,
-        unitPrice: selectedProduct.selling_price,
-        subtotal: qty * selectedProduct.selling_price
-      };
-      
-      setCartItems([...cartItems, newItem]);
+      setSubtotal(0);
     }
+  }, [inputUnits, inputDiscount, selectedProduct]);
 
-    // Limpiar selección
+
+  const resetForm = () => {
+    setCartItems([]);
     setSelectedProduct(null);
     setQuantity('1');
+    setPaymentMethod('Efectivo');
+    setNotes('');
+    setNewSaleData(null);
+    setDiscount('0');
+    setShowReceiptModal(false);
+  };
+
+  const handleCancelSale = () => {
+    Alert.alert(
+      'Cancelar venta',
+      '¿Estás seguro de que deseas cancelar la venta? Se perderán los cambios no guardados.',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel'
+        },
+        {
+          text: 'Sí, cancelar',
+          style: 'destructive',
+          onPress: () => {
+            resetForm();
+            router.back();
+          }
+        }
+      ]
+    );
   };
 
   const handleGenerateReceipt = async () => {
+    console.log("Datos de venta guardados:", newSaleData);
     if (!newSaleData) return;
     
     try {
       setLoading(true);
       const filePath = await receiptService.generatePDF(newSaleData);
       await receiptService.sharePDF(filePath);
-      // Navigate back after sharing
+      resetForm();
       router.back();
     } catch (error) {
       console.error('Error generating receipt:', error);
-      Alert.alert(i18n.t('common.error'), i18n.t('receipt.generateError'));
+      Alert.alert('Error', 'Error al generar recibo');
     } finally {
       setLoading(false);
     }
@@ -112,6 +107,8 @@ export default function NewSaleScreen() {
 
   const handleSkipReceipt = () => {
     setShowReceiptModal(false);
+    resetForm();
+    Alert.alert('Éxito', 'Venta realizada exitosamente.')
     router.back();
   };
 
@@ -122,157 +119,257 @@ export default function NewSaleScreen() {
   };
 
   const calculateTotal = () => {
-    return cartItems.reduce((sum, item) => sum + item.subtotal, 0);
+    const subtotal = cartItems.reduce((sum, item) => sum + item.subtotal, 0);
+    const discountValue = parseFloat(discount) || 0;
+    const total = subtotal - (subtotal * discountValue / 100);
+    return total;    
   };
-
-  // Add this state for print loading
-  const [printLoading, setPrintLoading] = useState<boolean>(false);
   
-  // Add this function to print receipt
-  const printReceipt = async (sale: Sale) => {
-    try {
-      setPrintLoading(true);
-      
-      // Generate PDF using receiptService
-      const pdfUri = await receiptService.generatePDF(sale);
-      
-      // Share the PDF
-      await receiptService.sharePDF(pdfUri);
-    } catch (error) {
-      console.error('Error printing receipt:', error);
-      Alert.alert('Error', 'No se pudo generar el comprobante');
-    } finally {
-      setPrintLoading(false);
-    }
+
+  const handleSelectProduct = (product: Product) => {
+    setSelectedProduct(product);
+    setBoxes('1');
   };
 
-  // Update the handleCompleteSale function to offer printing after successful sale
+
+  const handleAddToCart = () => {
+    if (!selectedProduct) {
+      Alert.alert('Error', 'Seleccione un producto');
+      return;
+    }
+
+    const newUnits = parseInt(inputUnits, 10);
+    if (isNaN(newUnits) || newUnits <= 0) {
+      Alert.alert('Error', 'Ingrese una cantidad vÃ¡lida');
+      return;
+    }
+
+    const existingIdx = cartItems.findIndex(i => i.productId === selectedProduct.id);
+    const existingItem = existingIdx >= 0 ? cartItems[existingIdx] : null;
+    const currentUnits = existingItem?.units || 0;
+    const totalUnits = currentUnits + newUnits;
+
+    // Verificamos stock
+    if (totalUnits > (selectedProduct.units || 0)) {
+      Alert.alert('Error', 'No hay suficiente stock de unidades');
+      return;
+    }
+
+    const cantidadPorCaja = selectedProduct.cantidad_por_caja || 1;
+
+    const discount = parseFloat(inputDiscount) || 0;
+    const unitPrice = selectedProduct.unit_price;
+    const discountedPrice = unitPrice * (1 - discount / 100);
+    const subtotal = totalUnits * discountedPrice;
+    
+    // Modificar esta línea para usar Math.ceil cuando hay unidades parciales
+    const cantidadDeCajas = totalUnits % cantidadPorCaja === 0 
+      ? Math.floor(totalUnits / cantidadPorCaja) 
+      : Math.ceil(totalUnits / cantidadPorCaja);
+      
+    console.log(totalUnits, "unidades,", cantidadDeCajas, "cajas");
+
+    const updated = [...cartItems];
+
+    const updatedItem: SaleItem = {
+      productId: selectedProduct.id!,
+      productName: selectedProduct.name,
+      quantity: cantidadDeCajas,
+      unitPrice,
+      subtotal,
+      units: totalUnits,
+      discount
+    };
+
+    if (existingIdx >= 0) {
+      updated[existingIdx] = updatedItem;
+    } else {
+      updated.push(updatedItem);
+    }
+
+    setCartItems(updated);
+    setSelectedProduct(null);
+    setInputUnits('1');
+    setInputDiscount('0');
+  };
+
   const handleCompleteSale = async () => {
     if (cartItems.length === 0) {
       Alert.alert('Error', 'El carrito está vacío');
       return;
     }
-
     try {
       setLoading(true);
-      
-      // Crear objeto de venta
-      const sale: Omit<Sale, 'id'> = {
+      const saleData: Omit<Sale, 'id'> = {
         date: new Date(),
         items: cartItems,
         total_amount: calculateTotal(),
         payment_method: paymentMethod,
-        notes: notes.trim() || ""
+        notes: notes.trim(),
+        discount: parseFloat(discount) || 0
       };
-      
-      // Registrar la venta
-      const newSale = await salesService.addSale(sale);
-      
-      // Registrar transacción en caja
+      const saved = await salesService.addSale(saleData);
+      console.log("Saved:", saved);
       await cashService.recordTransaction({
         date: new Date(),
         type: 'sale',
-        amount: sale.total_amount,
+        amount: saleData.total_amount,
         description: `Venta de ${cartItems.length} productos`,
-        reference: newSale.id
+        reference: saved.id
       });
-      
-      // Actualizar stock de productos
-      for (const item of cartItems) {
-        const product = await productService.getProductById(item.productId);
-        if (product) {
-          const newQuantity = (product.quantity || 0) - item.quantity;
-          await productService.updateProduct(item.productId, { quantity: newQuantity });
+      // Actualiza stock en unidades
+      for (const it of cartItems) {
+        const prod = await productService.getProductById(it.productId);
+        if (prod) {
+          if (it.quantity > 0) {
+            if (prod.quantity > 0) {
+              const newQuantity = prod.quantity! - it.quantity;
+              const newUnits = prod.units! - it.units;
+              console.log("Cantidades a actualizar:", newQuantity, "cajas y", newUnits, "unidades");
+              await productService.updateProduct(it.productId, { quantity: newQuantity, units: newUnits });
+            } else {
+              const newQuantity = 0;
+              const newUnits = prod.units! - it.units;
+              console.log("Cantidades a actualizar:", newQuantity, "cajas y", newUnits, "unidades");
+              await productService.updateProduct(it.productId, { quantity: newQuantity, units: newUnits });
+            }
+          } else {
+            const newUnits = prod.units! - it.units;
+            console.log("Actualización a", newUnits, "unidades");
+            await productService.updateProduct(it.productId, { units: newUnits });
+          }
+        } else {
+          Alert.alert('Error', 'Producto no encontrado');
+          console.error('Producto no encontrado:', it.productId);
         }
       }
-      
-      setNewSaleData(newSale);
+      setNewSaleData(saved);
       setShowReceiptModal(true);
     } catch (error) {
-      Alert.alert('Error', 'No se pudo completar la venta');
       console.error(error);
+      Alert.alert('Error', 'No se pudo completar la venta');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{ flex: 1 }}
+    <KeyboardAwareScrollView
+      style={[styles.container, { backgroundColor: theme.background }]}
+      resetScrollToCoords={{ x: 0, y: 0 }}
+      contentContainerStyle={{ flexGrow: 1 }}
+      enableOnAndroid={true}
+      extraScrollHeight={20} // espacio extra para que no tape el teclado
+      keyboardShouldPersistTaps="handled"
     >
       <ScrollView 
         style={[styles.container, {backgroundColor: theme.background}]} 
-        nestedScrollEnabled={true}
         keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ flexGrow: 1 }}
       >
         <View style={[styles.card, {backgroundColor: theme.surface}]}>
-          <Text style={[styles.title, {color: theme.text}]}>{i18n.t('sales.new')}</Text>
+          <Text style={[styles.title, {color: theme.text}]}>Nueva venta</Text>
           
           <View style={[styles.section, { zIndex: 1000 }]}>
             <Text style={[styles.sectionTitle, {color: theme.primary, borderBottomColor: theme.primaryLight}]}>
-              {i18n.t('sales.searchProduct')}
+              Buscar producto
             </Text>
             <ProductSearchInput onSelectProduct={handleSelectProduct} />
             
             {selectedProduct && (
-              <View style={[styles.selectedProductContainer, {backgroundColor: theme.background}]}>
-                <View style={styles.selectedProductInfo}>
-                  <Text style={[styles.selectedProductName, {color: theme.text}]}>
-                    {selectedProduct.name}
-                  </Text>
-                  <Text style={[styles.selectedProductPrice, {color: theme.primary}]}>
-                    {i18n.t('sales.price')}: ${selectedProduct.selling_price}
-                  </Text>
-                  <Text style={[styles.selectedProductStock, {color: theme.textLight}]}>
-                    {i18n.t('sales.availableStock')}: {selectedProduct.quantity || 0}
-                  </Text>
-                </View>
-                
-                <View style={styles.quantityContainer}>
-                  <Text style={[styles.quantityLabel, {color: theme.text}]}>
-                    {i18n.t('sales.quantity')}:
-                  </Text>
-                  <TextInput
-                    style={[styles.quantityInput, {
+                <View style={[styles.selectedProductContainer, {backgroundColor: theme.background}]}>
+                  <View style={styles.selectedProductInfo}>
+                    <Text style={[styles.selectedProductName, {color: theme.text}]}>
+                      {selectedProduct.name}
+                    </Text>
+                    <Text style={[styles.selectedProductPrice, {color: theme.primary}]}>
+                      Precio por caja: ${selectedProduct.selling_price.toLocaleString('es-ES')}
+                    </Text>
+                    <Text style={[styles.selectedProductPrice, {color: theme.primary}]}>
+                      Precio por unidad: ${selectedProduct.unit_price.toLocaleString('es-ES')}
+                    </Text>
+                    <Text style={[styles.selectedProductStock, {color: theme.textLight}]}>
+                      Cajas cerradas: {selectedProduct.quantity || 0} (unidades por caja: {selectedProduct.cantidad_por_caja || 0})
+                    </Text>
+                    <Text style={[styles.selectedProductStock, {color: theme.textLight}]}>
+                      Unidades sueltas: {selectedProduct.units % selectedProduct.cantidad_por_caja || 0}
+                    </Text>
+                    <Text style={[styles.selectedProductStock, {color: theme.textLight}]}>
+                      Unidades totales disponibles: {selectedProduct.units || 0}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.quantityContainer}>
+                    <Text style={[styles.quantityLabel, { color: theme.text, width: 125 }]}>Unidades:</Text>
+                    <TextInput
+                      style={[styles.quantityInput, {
+                        backgroundColor: theme.surface,
+                        borderColor: theme.primaryLight,
+                        color: theme.text,
+                        textAlign: 'center',
+                        flex: 1,
+                      }]}
+                      value={inputUnits}
+                      onChangeText={setInputUnits}
+                      keyboardType="numeric"
+                      returnKeyType="done"
+                      placeholderTextColor={theme.textLight}
+                    />
+                  </View>
+
+                  <View style={styles.quantityContainer}>
+                    <Text style={[styles.quantityLabel, { color: theme.text, width: 125 }]}>Descuento %:</Text>
+                    <TextInput
+                      style={[styles.quantityInput, {
+                        backgroundColor: theme.surface,
+                        borderColor: theme.primaryLight,
+                        color: theme.text,
+                        textAlign: 'center',
+                        flex: 1,
+                      }]}
+                      value={inputDiscount}
+                      onChangeText={setInputDiscount}
+                      keyboardType="numeric"
+                      returnKeyType="done"
+                      placeholder="0"
+                      placeholderTextColor={theme.textLight}
+                    />
+                  </View>
+
+                  <View style={styles.quantityContainer}>
+                    <Text style={[styles.quantityLabel, { color: theme.text, width: 125 }]}>Subtotal:</Text>
+                    <Text style={[styles.quantityInput, {
                       backgroundColor: theme.surface,
+                      color: theme.text,
+                      flex: 1,
+                      textAlign: 'center',
+                      fontWeight: 'bold',
+                      paddingVertical: 8,
+                      borderWidth: 1,
                       borderColor: theme.primaryLight,
-                      color: theme.text
-                    }]}
-                    value={quantity}
-                    onChangeText={setQuantity}
-                    keyboardType="numeric"
-                    placeholderTextColor={theme.textLight}
-                  />
-                </View>
-                <View style={styles.buttonsContainer}>
-                  <TouchableOpacity
-                    style={[styles.addToCartButton, {backgroundColor: theme.primary}]}
-                    onPress={handleAddToCart}
-                  >
-                    <Ionicons name="add-circle" size={20} color={theme.surface} />
-                    <Text style={[styles.addToCartButtonText, {color: theme.surface}]}>
-                      {i18n.t('sales.add')}
+                    }]}>
+                      ${subtotal.toLocaleString('es-ES')}
                     </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.addToCartButton, {backgroundColor: theme.error}]}
-                    onPress={() => setSelectedProduct(null)}
-                  >
-                    <Ionicons name="close-circle" size={20} color={theme.surface} />
-                    <Text style={[styles.addToCartButtonText, {color: theme.surface}]}>
-                      {i18n.t('common.cancel')}
-                    </Text>
-                  </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.buttonsContainer}>
+                    <TouchableOpacity style={[styles.addToCartButton, { backgroundColor: theme.primary }]} onPress={handleAddToCart}>
+                      <Ionicons name="add-circle" size={20} color={theme.surface} />
+                      <Text style={[styles.addToCartButtonText, { color: theme.surface }]}>Agregar</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.addToCartButton, { backgroundColor: theme.error }]} onPress={() => setSelectedProduct(null)}>
+                      <Ionicons name="close-circle" size={20} color={theme.surface} />
+                      <Text style={[styles.addToCartButtonText, { color: theme.surface }]}>Cancelar</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
             )}
           </View>
           
           <View style={styles.section}>
             {cartItems.length === 0 ? (
               <Text style={[styles.emptyCartText, {color: theme.textLight}]}>
-                {i18n.t('sales.emptyCart')}
+                {'Carrito vacÃ­o'}
               </Text>
             ) : (
               // Replace FlatList with a simple mapping of items
@@ -284,11 +381,12 @@ export default function NewSaleScreen() {
                         {item.productName}
                       </Text>
                       <Text style={[styles.cartItemDetails, {color: theme.textLight}]}>
-                        {item.quantity} x ${item.unitPrice}
+                        {item.units} x ${item.unitPrice.toLocaleString('es-ES')}
+                        {item.discount > 0 && ` (-${item.discount}%)`}
                       </Text>
                     </View>
-                    <Text style={[styles.cartItemSubtotal, {color: theme.primary}]}>
-                      ${item.subtotal}
+                    <Text style={[styles.cartItemSubtotal, {color: theme.accent}]}>
+                      ${item.subtotal.toLocaleString('es-ES')}
                     </Text>
                     <TouchableOpacity
                       style={styles.removeButton}
@@ -304,10 +402,10 @@ export default function NewSaleScreen() {
             {cartItems.length > 0 && (
               <View style={[styles.totalContainer, {borderTopColor: theme.primaryLight}]}>
                 <Text style={[styles.totalLabel, {color: theme.text}]}>
-                  {i18n.t('sales.total')}:
+                  Total:
                 </Text>
-                <Text style={[styles.totalAmount, {color: theme.primary}]}>
-                  ${calculateTotal()}
+                <Text style={[styles.totalAmount, {color: theme.accent}]}>
+                  ${calculateTotal().toLocaleString('es-ES')}
                 </Text>
               </View>
             )}
@@ -316,12 +414,12 @@ export default function NewSaleScreen() {
           {cartItems.length > 0 && (
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, {color: theme.primary, borderBottomColor: theme.primaryLight}]}>
-                {i18n.t('sales.paymentMethod')}
+                Método de pago
               </Text>
               
               <View style={styles.formGroup}>
                 <View style={styles.paymentMethodContainer}>
-                  {[i18n.t('payment.cash'), i18n.t('payment.transfer'), i18n.t('payment.debit'), i18n.t('payment.credit')].map((method) => (
+                  {['Efectivo', 'Transferencia', 'DÃ©bito', 'CrÃ©dito'].map((method) => (
                     <TouchableOpacity
                       key={method}
                       style={[
@@ -351,7 +449,7 @@ export default function NewSaleScreen() {
               
               <View style={styles.formGroup}>
                 <Text style={[styles.label, {color: theme.text}]}>
-                  {i18n.t('sales.notes')}
+                  {'Notas'}
                 </Text>
                 <TextInput
                   style={[styles.notesInput, {
@@ -361,7 +459,7 @@ export default function NewSaleScreen() {
                   }]}
                   value={notes}
                   onChangeText={setNotes}
-                  placeholder={i18n.t('sales.addNotes')}
+                  placeholder={'Agregar notas...'}
                   placeholderTextColor={theme.textLight}
                   multiline
                 />
@@ -372,11 +470,11 @@ export default function NewSaleScreen() {
           <View style={styles.buttonContainer}>
             <TouchableOpacity
               style={[styles.cancelButton, {backgroundColor: theme.error}]}
-              onPress={() => router.back()}
+              onPress={() => handleCancelSale()}
               disabled={loading}
             >
               <Text style={[styles.buttonText, {color: theme.surface}]}>
-                {i18n.t('common.cancel')}
+                Cancelar
               </Text>
             </TouchableOpacity>
             
@@ -398,7 +496,7 @@ export default function NewSaleScreen() {
                 <>
                   <Ionicons name="checkmark-circle" size={20} color={theme.surface} />
                   <Text style={[styles.buttonText, {color: theme.surface}]}>
-                    {i18n.t('sales.complete')}
+                    Completar venta
                   </Text>
                 </>
               )}
@@ -415,10 +513,10 @@ export default function NewSaleScreen() {
             <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
               <Ionicons name="checkmark-circle" size={60} color={theme.success} style={styles.successIcon} />
               <Text style={[styles.modalTitle, { color: theme.text }]}>
-                {i18n.t('sales.successSale')}
+                {'Venta realizada con Ã©xito'}
               </Text>
               <Text style={[styles.modalText, { color: theme.textLight }]}>
-                {i18n.t('receipt.generateQuestion')}
+                {'Â¿Desea generar un recibo?'}
               </Text>
               
               <View style={styles.modalButtons}>
@@ -426,7 +524,7 @@ export default function NewSaleScreen() {
                   style={[styles.modalButton, { backgroundColor: theme.background, borderColor: theme.border }]}
                   onPress={handleSkipReceipt}
                 >
-                  <Text style={{ color: theme.text }}>{i18n.t('receipt.skip')}</Text>
+                  <Text style={{ color: theme.text }}>{'Omitir'}</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity
@@ -437,7 +535,7 @@ export default function NewSaleScreen() {
                   {loading ? (
                     <ActivityIndicator size="small" color={theme.surface} />
                   ) : (
-                    <Text style={{ color: theme.surface }}>{i18n.t('receipt.generate')}</Text>
+                    <Text style={{ color: theme.text, textAlign:'center' }}>Generar comprobante</Text>
                   )}
                 </TouchableOpacity>
               </View>
@@ -445,7 +543,7 @@ export default function NewSaleScreen() {
           </View>
         </Modal>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAwareScrollView>
   );
 }
 
@@ -519,7 +617,6 @@ const styles = StyleSheet.create({
   quantityInput: {
     borderRadius: 8,
     padding: 8,
-    width: 80,
     fontSize: 16,
     borderWidth: 1,
   },
@@ -552,7 +649,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   cartItemName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '500',
     marginBottom: 4,
   },
@@ -691,7 +788,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    textAlign: 'center',
     marginHorizontal: 8,
     borderWidth: 1,
   },
 });
+

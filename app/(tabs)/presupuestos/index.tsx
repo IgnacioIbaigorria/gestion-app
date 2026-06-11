@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { quoteService } from '../../../services/quoteService';
 import QuoteItem from '../../../components/QuoteItem';
 import { Quote, QuoteStatus } from '../../../models/types';
-import i18n from '../../../translations';
 import { useTheme } from '@/contexts/ThemeContext';
 
 export default function QuotesScreen() {
@@ -24,16 +23,16 @@ export default function QuotesScreen() {
     try {
       setLoading(true);
       let quotesData: Quote[];
-      
+
       if (filterStatus === 'all') {
         quotesData = await quoteService.getAllQuotes();
       } else {
         quotesData = await quoteService.getQuotesByStatus(filterStatus);
       }
-      
+
       setQuotes(quotesData);
     } catch (error) {
-      Alert.alert(i18n.t('common.error'), i18n.t('quotes.errorLoading'));
+      Alert.alert('Error', 'Error al cargar presupuestos');
       console.error(error);
     } finally {
       setLoading(false);
@@ -42,25 +41,25 @@ export default function QuotesScreen() {
 
   const handleDeleteQuote = (quote: Quote) => {
     Alert.alert(
-      i18n.t('common.confirm'),
-      i18n.t('quotes.confirmDelete'),
+      'Confirmar',
+      '¿Estás seguro de eliminar este presupuesto?',
       [
         {
-          text: i18n.t('common.cancel'),
+          text: 'Cancelar',
           style: 'cancel'
         },
         {
-          text: i18n.t('common.delete'),
+          text: 'Eliminar',
           style: 'destructive',
           onPress: async () => {
             try {
               setLoading(true);
               await quoteService.deleteQuote(quote.id!);
               loadQuotes();
-              Alert.alert(i18n.t('common.success'), i18n.t('quotes.deleteSuccess'));
+              Alert.alert('Éxito', 'Presupuesto eliminado correctamente');
             } catch (error) {
               console.error('Error deleting quote:', error);
-              Alert.alert(i18n.t('common.error'), i18n.t('quotes.deleteError'));
+              Alert.alert('Error', 'Error al eliminar el presupuesto');
             } finally {
               setLoading(false);
             }
@@ -72,10 +71,10 @@ export default function QuotesScreen() {
 
   const handleConvertToSale = (quote: Quote) => {
     if (quote.status === 'converted') {
-      Alert.alert(i18n.t('common.error'), i18n.t('quotes.alreadyConverted'));
+      Alert.alert('Error', 'El presupuesto ya ha sido convertido');
       return;
     }
-    
+
     // Show the custom payment method modal
     setSelectedQuote(quote);
     setPaymentModalVisible(true);
@@ -84,7 +83,7 @@ export default function QuotesScreen() {
   const handlePaymentMethodSelect = (paymentMethod: string) => {
     // Close the modal
     setPaymentModalVisible(false);
-    
+
     // Proceed with conversion if we have a selected quote
     if (selectedQuote) {
       confirmConversion(selectedQuote, paymentMethod);
@@ -94,26 +93,26 @@ export default function QuotesScreen() {
   const confirmConversion = (quote: Quote, paymentMethod: string) => {
     // For debugging
     console.log('Selected payment method:', paymentMethod);
-    
+
     Alert.alert(
-      i18n.t('common.confirm'),
-      i18n.t('quotes.confirmConvert'),
+      'Confirmar',
+      '¿Estás seguro de convertir este presupuesto a venta?',
       [
         {
-          text: i18n.t('common.cancel'),
+          text: 'Cancelar',
           style: 'cancel'
         },
         {
-          text: i18n.t('common.confirm'),
+          text: 'Confirmar',
           onPress: async () => {
             try {
               setLoading(true);
               await quoteService.convertQuoteToSale(quote.id!, paymentMethod);
               loadQuotes();
-              Alert.alert(i18n.t('common.success'), i18n.t('quotes.convertSuccess'));
+              Alert.alert('Éxito', 'Presupuesto convertido a venta correctamente');
             } catch (error) {
               console.error('Error converting quote to sale:', error);
-              Alert.alert(i18n.t('common.error'), i18n.t('quotes.convertError'));
+              Alert.alert('Error', 'Error al convertir el presupuesto a venta');
             } finally {
               setLoading(false);
             }
@@ -127,7 +126,7 @@ export default function QuotesScreen() {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={theme.primary} />
-        <Text style={[styles.loadingText, { color: theme.textLight }]}>{i18n.t('quotes.loading')}</Text>
+        <Text style={[styles.loadingText, { color: theme.textLight }]}>Cargando presupuestos</Text>
       </View>
     );
   }
@@ -137,65 +136,65 @@ export default function QuotesScreen() {
       <View style={[styles.filterContainer, { backgroundColor: theme.surface }]}>
         <TouchableOpacity
           style={[
-            styles.filterButton, 
+            styles.filterButton,
             filterStatus === 'all' && [styles.filterButtonActive, { backgroundColor: theme.primary }]
           ]}
           onPress={() => setFilterStatus('all')}
         >
           <Text style={[
-            styles.filterText, 
+            styles.filterText,
             { color: theme.text },
             filterStatus === 'all' && [styles.filterTextActive, { color: theme.surface }]
           ]}>
-            {i18n.t('quotes.filter.all')}
+            Todos
           </Text>
         </TouchableOpacity>
-        
+
         <TouchableOpacity
           style={[
-            styles.filterButton, 
+            styles.filterButton,
             filterStatus === 'pending' && [styles.filterButtonActive, { backgroundColor: theme.primary }]
           ]}
           onPress={() => setFilterStatus('pending')}
         >
           <Text style={[
-            styles.filterText, 
+            styles.filterText,
             { color: theme.text },
             filterStatus === 'pending' && [styles.filterTextActive, { color: theme.surface }]
           ]}>
-            {i18n.t('quotes.filter.pending')}
+            Pendientes
           </Text>
         </TouchableOpacity>
-        
+
         <TouchableOpacity
           style={[
-            styles.filterButton, 
+            styles.filterButton,
             filterStatus === 'approved' && [styles.filterButtonActive, { backgroundColor: theme.primary }]
           ]}
           onPress={() => setFilterStatus('approved')}
         >
           <Text style={[
-            styles.filterText, 
+            styles.filterText,
             { color: theme.text },
             filterStatus === 'approved' && [styles.filterTextActive, { color: theme.surface }]
           ]}>
-            {i18n.t('quotes.filter.approved')}
+            Aprobados
           </Text>
         </TouchableOpacity>
-        
+
         <TouchableOpacity
           style={[
-            styles.filterButton, 
+            styles.filterButton,
             filterStatus === 'converted' && [styles.filterButtonActive, { backgroundColor: theme.primary }]
           ]}
           onPress={() => setFilterStatus('converted')}
         >
           <Text style={[
-            styles.filterText, 
+            styles.filterText,
             { color: theme.text },
             filterStatus === 'converted' && [styles.filterTextActive, { color: theme.surface }]
           ]}>
-            {i18n.t('quotes.filter.converted')}
+            Convertidos
           </Text>
         </TouchableOpacity>
       </View>
@@ -204,9 +203,9 @@ export default function QuotesScreen() {
         data={quotes}
         keyExtractor={(item) => item.id!}
         renderItem={({ item }) => (
-          <QuoteItem 
-            quote={item} 
-            onDelete={() => handleDeleteQuote(item)} 
+          <QuoteItem
+            quote={item}
+            onDelete={() => handleDeleteQuote(item)}
             onConvert={() => handleConvertToSale(item)}
           />
         )}
@@ -214,11 +213,11 @@ export default function QuotesScreen() {
         onRefresh={loadQuotes}
         ListEmptyComponent={
           <Text style={[styles.emptyText, { color: theme.textLight }]}>
-            {i18n.t('quotes.empty')}
+            No hay presupuestos
           </Text>
         }
       />
-      
+
       <TouchableOpacity
         style={[styles.addButton, { backgroundColor: theme.primary }]}
         onPress={() => router.push('/presupuestos/nuevo')}
@@ -236,58 +235,58 @@ export default function QuotesScreen() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
             <Text style={[styles.modalTitle, { color: theme.text }]}>
-              {i18n.t('common.paymentMethod') || 'Método de Pago'}
+              'Método de Pago'
             </Text>
             <Text style={[styles.modalSubtitle, { color: theme.textLight }]}>
-              {i18n.t('quotes.selectPaymentMethod') || 'Seleccione el método de pago'}
+              'Seleccione el método de pago'
             </Text>
-            
+
             <TouchableOpacity
               style={[styles.paymentOption, { borderColor: theme.border }]}
               onPress={() => handlePaymentMethodSelect('Efectivo')}
             >
               <Ionicons name="cash-outline" size={24} color={theme.primary} />
               <Text style={[styles.paymentOptionText, { color: theme.text }]}>
-                {i18n.t('payment.cash') || 'Efectivo'}
+                Efectivo
               </Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity
               style={[styles.paymentOption, { borderColor: theme.border }]}
               onPress={() => handlePaymentMethodSelect('Transferencia')}
             >
               <Ionicons name="swap-horizontal-outline" size={24} color={theme.primary} />
               <Text style={[styles.paymentOptionText, { color: theme.text }]}>
-                {i18n.t('payment.transfer') || 'Transferencia'}
+                Transferencia
               </Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity
               style={[styles.paymentOption, { borderColor: theme.border }]}
               onPress={() => handlePaymentMethodSelect('Débito')}
             >
               <Ionicons name="card-outline" size={24} color={theme.primary} />
               <Text style={[styles.paymentOptionText, { color: theme.text }]}>
-                {i18n.t('payment.debit') || 'Débito'}
+                Débito
               </Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity
               style={[styles.paymentOption, { borderColor: theme.border }]}
               onPress={() => handlePaymentMethodSelect('Crédito')}
             >
               <Ionicons name="card" size={24} color={theme.primary} />
               <Text style={[styles.paymentOptionText, { color: theme.text }]}>
-                {i18n.t('payment.credit') || 'Crédito'}
+                Crédito
               </Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity
               style={[styles.cancelButton, { backgroundColor: theme.error }]}
               onPress={() => setPaymentModalVisible(false)}
             >
               <Text style={[styles.cancelButtonText, { color: 'white' }]}>
-                {i18n.t('common.cancel') || 'Cancelar'}
+                Cancelar
               </Text>
             </TouchableOpacity>
           </View>

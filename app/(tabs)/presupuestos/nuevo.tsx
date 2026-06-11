@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { productService } from '../../../services/productService';
 import { quoteService } from '../../../services/quoteService';
 import { Product, QuoteItem } from '../../../models/types';
-import i18n from '../../../translations';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useIsFocused } from '@react-navigation/native';
 
@@ -51,7 +50,7 @@ export default function NewQuoteScreen() {
   useEffect(() => {
     if (isFocused) {
       loadProducts();
-      
+
       // If no ID is provided and the screen is focused, reset the form
       if (!id) {
         resetForm();
@@ -63,7 +62,7 @@ export default function NewQuoteScreen() {
     if (searchQuery.trim() === '') {
       setFilteredProducts(products);
     } else {
-      const filtered = products.filter(product => 
+      const filtered = products.filter(product =>
         product.name.toLowerCase().includes(searchQuery.toLowerCase())
       );
       setFilteredProducts(filtered);
@@ -74,12 +73,12 @@ export default function NewQuoteScreen() {
     try {
       setInitialLoading(true);
       const quote = await quoteService.getQuoteById(quoteId);
-      
+
       if (quote) {
         setCustomerName(quote.customer_name || '');
         setNotes(quote.notes || '');
         setItems(quote.items || []);
-        
+
         // Calculate valid days from valid_until date if available
         if (quote.valid_until) {
           const validUntil = new Date(quote.valid_until);
@@ -109,7 +108,7 @@ export default function NewQuoteScreen() {
       setFilteredProducts(productsData);
     } catch (error) {
       console.error('Error loading products:', error);
-      Alert.alert(i18n.t('common.error'), i18n.t('products.errorLoading'));
+      Alert.alert('Error', 'No se pudo cargar los productos');
     } finally {
       setLoading(false);
     }
@@ -118,7 +117,7 @@ export default function NewQuoteScreen() {
   const addItemToQuote = (product: Product) => {
     // Check if product already exists in the quote
     const existingItemIndex = items.findIndex(item => item.productId === product.id);
-    
+
     if (existingItemIndex >= 0) {
       // Update quantity if product already exists
       const updatedItems = [...items];
@@ -137,7 +136,7 @@ export default function NewQuoteScreen() {
       };
       setItems([...items, newItem]);
     }
-    
+
     setShowProductSelector(false);
   };
 
@@ -149,7 +148,7 @@ export default function NewQuoteScreen() {
 
   const updateItemQuantity = (index: number, quantity: number) => {
     if (quantity <= 0) return;
-    
+
     const updatedItems = [...items];
     updatedItems[index].quantity = quantity;
     updatedItems[index].subtotal = quantity * updatedItems[index].unitPrice;
@@ -162,22 +161,22 @@ export default function NewQuoteScreen() {
 
   const handleCreateQuote = async () => {
     if (!customerName.trim()) {
-      Alert.alert(i18n.t('common.error'), i18n.t('quotes.customerNameRequired'));
+      Alert.alert('Error', 'El nombre del cliente es requerido');
       return;
     }
 
     if (items.length === 0) {
-      Alert.alert(i18n.t('common.error'), i18n.t('quotes.itemsRequired'));
+      Alert.alert('Error', 'Se requieren al menos un producto');
       return;
     }
 
     try {
       setLoading(true);
-      
+
       // Calculate valid until date
       const validUntil = new Date();
       validUntil.setDate(validUntil.getDate() + parseInt(validDays || '30', 10));
-            
+
       await quoteService.createQuote({
         customer_name: customerName.trim(),
         items,
@@ -188,13 +187,13 @@ export default function NewQuoteScreen() {
         valid_until: validUntil
       });
       Alert.alert(
-        i18n.t('common.success'),
-        i18n.t('quotes.createSuccess'),
+        'Exito',
+        'Presupuesto creado exitosamente',
         [{ text: 'OK', onPress: () => router.back() }]
       );
     } catch (error) {
       console.error('Error creating quote:', error);
-      Alert.alert(i18n.t('common.error'), i18n.t('quotes.createError'));
+      Alert.alert('Error', 'No se pudo crear el presupuesto');
     } finally {
       setLoading(false);
     }
@@ -204,49 +203,55 @@ export default function NewQuoteScreen() {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={theme.primary} />
-        <Text style={[styles.loadingText, { color: theme.textLight }]}>{i18n.t('common.loading')}</Text>
+        <Text style={[styles.loadingText, { color: theme.textLight }]}>
+          Cargando...
+        </Text>
       </View>
     );
   }
 
   return (
     <>
-      <Stack.Screen 
-        options={{ 
-          title: i18n.t('quotes.new'),
+      <Stack.Screen
+        options={{
+          title: 'Nuevo Presupuesto',
           headerStyle: {
             backgroundColor: theme.primary,
           },
           headerTintColor: theme.surface,
-        }} 
+        }}
       />
-      
+
       <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>{i18n.t('quotes.customerInfo')}</Text>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>
+            Información del cliente
+          </Text>
           <TextInput
             style={[styles.input, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
-            placeholder={i18n.t('quotes.customerName')}
+            placeholder="Nombre del cliente"
             placeholderTextColor={theme.textLight}
             value={customerName}
             onChangeText={setCustomerName}
           />
         </View>
-        
+
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>{i18n.t('quotes.items')}</Text>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>
+              Items
+            </Text>
             <TouchableOpacity
               style={[styles.addItemButton, { backgroundColor: theme.primary }]}
               onPress={() => setShowProductSelector(true)}
             >
               <Ionicons name="add" size={20} color={theme.surface} />
-              <Text style={[styles.addItemButtonText, { color: theme.surface }]}>{i18n.t('quotes.addItem')}</Text>
+              <Text style={[styles.addItemButtonText, { color: theme.surface }]}>{'Agregar item'}</Text>
             </TouchableOpacity>
           </View>
-          
+
           {items.length === 0 ? (
-            <Text style={[styles.emptyText, { color: theme.textLight }]}>{i18n.t('quotes.noItems')}</Text>
+            <Text style={[styles.emptyText, { color: theme.textLight }]}>{'No hay items'}</Text>
           ) : (
             <View style={styles.itemsList}>
               {items.map((item, index) => (
@@ -257,12 +262,12 @@ export default function NewQuoteScreen() {
                       <Ionicons name="close-circle" size={24} color={theme.error} />
                     </TouchableOpacity>
                   </View>
-                  
+
                   <View style={styles.itemDetails}>
                     <Text style={[styles.itemPrice, { color: theme.textLight }]}>
-                      ${item.unitPrice.toFixed(2)} {i18n.t('common.perUnit')}
+                      ${item.unitPrice.toFixed(2)} {'por unidad'}
                     </Text>
-                    
+
                     <View style={styles.quantityContainer}>
                       <TouchableOpacity
                         style={[styles.quantityButton, { backgroundColor: theme.primary }]}
@@ -270,9 +275,9 @@ export default function NewQuoteScreen() {
                       >
                         <Ionicons name="remove" size={16} color={theme.surface} />
                       </TouchableOpacity>
-                      
+
                       <Text style={[styles.quantityText, { color: theme.text }]}>{item.quantity}</Text>
-                      
+
                       <TouchableOpacity
                         style={[styles.quantityButton, { backgroundColor: theme.primary }]}
                         onPress={() => updateItemQuantity(index, item.quantity + 1)}
@@ -281,9 +286,9 @@ export default function NewQuoteScreen() {
                       </TouchableOpacity>
                     </View>
                   </View>
-                  
+
                   <View style={styles.itemFooter}>
-                    <Text style={[styles.subtotalLabel, { color: theme.textLight }]}>{i18n.t('common.subtotal')}:</Text>
+                    <Text style={[styles.subtotalLabel, { color: theme.textLight }]}>{'Subtotal'}</Text>
                     <Text style={[styles.subtotalValue, { color: theme.text }]}>${item.subtotal.toFixed(2)}</Text>
                   </View>
                 </View>
@@ -291,11 +296,11 @@ export default function NewQuoteScreen() {
             </View>
           )}
         </View>
-        
+
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>{i18n.t('quotes.additionalInfo')}</Text>
-          
-          <Text style={[styles.label, { color: theme.text }]}>{i18n.t('quotes.validFor')}</Text>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>{'Información adicional'}</Text>
+
+          <Text style={[styles.label, { color: theme.text }]}>{'Válido por'}</Text>
           <TextInput
             style={[styles.input, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
             placeholder="30"
@@ -304,11 +309,11 @@ export default function NewQuoteScreen() {
             onChangeText={setValidDays}
             keyboardType="numeric"
           />
-          
-          <Text style={[styles.label, { color: theme.text }]}>{i18n.t('quotes.notes')}</Text>
+
+          <Text style={[styles.label, { color: theme.text }]}>{'Notas'}</Text>
           <TextInput
             style={[styles.textArea, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
-            placeholder={i18n.t('quotes.notesPlaceholder')}
+            placeholder={'Notas'}
             placeholderTextColor={theme.textLight}
             value={notes}
             onChangeText={setNotes}
@@ -316,41 +321,41 @@ export default function NewQuoteScreen() {
             numberOfLines={4}
           />
         </View>
-        
+
         <View style={[styles.totalContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.totalLabel, { color: theme.textLight }]}>{i18n.t('common.total')}:</Text>
+          <Text style={[styles.totalLabel, { color: theme.textLight }]}>{'Total'}</Text>
           <Text style={[styles.totalValue, { color: theme.primary }]}>${calculateTotal().toFixed(2)}</Text>
         </View>
-        
+
         <TouchableOpacity
           style={[styles.createButton, { backgroundColor: theme.primary }]}
           onPress={handleCreateQuote}
         >
-          <Text style={[styles.createButtonText, { color: theme.surface }]}>{i18n.t('quotes.create')}</Text>
+          <Text style={[styles.createButtonText, { color: theme.surface }]}>{'Crear presupuesto'}</Text>
         </TouchableOpacity>
       </ScrollView>
-      
+
       {showProductSelector && (
         <View style={[styles.productSelectorOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
           <View style={[styles.productSelector, { backgroundColor: theme.surface }]}>
             <View style={styles.productSelectorHeader}>
-              <Text style={[styles.productSelectorTitle, { color: theme.text }]}>{i18n.t('quotes.selectProduct')}</Text>
+              <Text style={[styles.productSelectorTitle, { color: theme.text }]}>{'Seleccionar producto'}</Text>
               <TouchableOpacity onPress={() => setShowProductSelector(false)}>
                 <Ionicons name="close" size={24} color={theme.text} />
               </TouchableOpacity>
             </View>
-            
+
             <TextInput
               style={[styles.searchInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
-              placeholder={i18n.t('common.search')}
+              placeholder={'Buscar'}
               placeholderTextColor={theme.textLight}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
-            
+
             <ScrollView style={styles.productList}>
               {filteredProducts.length === 0 ? (
-                <Text style={[styles.emptyText, { color: theme.textLight }]}>{i18n.t('products.noProducts')}</Text>
+                <Text style={[styles.emptyText, { color: theme.textLight }]}>{'No hay productos'}</Text>
               ) : (
                 filteredProducts.map(product => (
                   <TouchableOpacity
@@ -361,7 +366,7 @@ export default function NewQuoteScreen() {
                     <View>
                       <Text style={[styles.productName, { color: theme.text }]}>{product.name}</Text>
                       <Text style={[styles.productPrice, { color: theme.textLight }]}>
-                        ${product.selling_price.toFixed(2)} - {i18n.t('products.stock')}: {product.quantity}
+                        ${product.selling_price.toFixed(2)} - {'stock'}: {product.quantity}
                       </Text>
                     </View>
                     <Ionicons name="add-circle" size={24} color={theme.primary} />
